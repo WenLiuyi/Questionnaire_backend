@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-v7htw$sv#qn(ybaac9d=-gbw-yqn1b(d#osy@c$we)x$nq@#d6"
+SECRET_KEY = "django-insecure-k@x^w4x9^xa_ep9w0m4_92@)mtqtat*)$xe^p$6lz##5eq!bkc"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -37,11 +37,14 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "app",      #注册app
+    #'corsheaders',  #跨域add
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    #'corsheaders.middleware.CorsMiddleware',  # 添加这一行
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -75,8 +78,14 @@ WSGI_APPLICATION = "backend.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        'ENGINE': 'django.db.backends.mysql',
+        #'ENGINE': 'sqlalchemy',
+        #'URL': '172.21.0.7',
+        'HOST': 'bj-cynosdbmysql-grp-g9kxigho.sql.tencentcdb.com',  # 数据库主机
+        'PORT': 23531,  # 数据库端口
+        'USER': 'buaa21374125',  # 数据库用户名
+        'PASSWORD': 'BUaa21374125',  # 数据库用户密码
+        'NAME': 'db'  # 数据库名
     }
 }
 
