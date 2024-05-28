@@ -21,7 +21,7 @@ class Survey(models.Model):
     TimeLimit = models.IntegerField(null=True, blank=True)
 
 class BaseQuestion(models.Model):
-    QuestionID = models.AutoField(primary_key=True)
+    QuestionID = models.AutoField(primary_key=rue)
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='%(class)s_questions')
     Text = models.TextField(max_length=500)
     IsRequired = models.BooleanField(default=True)
