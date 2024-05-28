@@ -37,14 +37,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "app",      #注册app
-    #'corsheaders',  #跨域add
+    "app",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
-    #'corsheaders.middleware.CorsMiddleware',  # 添加这一行
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -79,13 +77,11 @@ WSGI_APPLICATION = "backend.wsgi.application"
 DATABASES = {
     "default": {
         'ENGINE': 'django.db.backends.mysql',
-        #'ENGINE': 'sqlalchemy',
-        #'URL': '172.21.0.7',
-        'HOST': 'bj-cynosdbmysql-grp-g9kxigho.sql.tencentcdb.com',  # 数据库主机
-        'PORT': 23531,  # 数据库端口
+        'HOST': '172.21.0.7',  # 数据库主机
+        'PORT': 3306,  # 数据库端口
         'USER': 'buaa21374125',  # 数据库用户名
         'PASSWORD': 'BUaa21374125',  # 数据库用户密码
-        'NAME': 'db'  # 数据库名
+        'NAME': 'program_database'  # 数据库名
     }
 }
 

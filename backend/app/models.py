@@ -1,25 +1,6 @@
 from django.db import models
-'''
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
-
-from sqlalchemy import create_engine
-host='bj-cynosdbmysql-grp-g9kxigho.sql.tencentcdb.com'  # 数据库主机
-port=23531,     # 数据库端口
-username='buaa21374125'
-password='BUaa21374125'
-
-Base = declarative_base()
-
-# 创建SQLAlchemy引擎
-engine = create_engine('mysql://{username}:{password}@{host}:{port}/db?charset=utf8mb4')
-Session = sessionmaker(bind=engine)
-session = Session()
-'''
 
 # Create your models here.
-
 class User(models.Model):
     UserID = models.AutoField(primary_key=True)
     username = models.CharField(unique=True, max_length=50)
@@ -27,22 +8,17 @@ class User(models.Model):
     email = models.EmailField(unique=True, max_length=100)
     CreateDate = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        db_table='tb_users'
-
 class Survey(models.Model):
     SurveyID = models.AutoField(primary_key=True)
-    Owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='questionnaire')
+    Owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='surveys')
     Title = models.CharField(max_length=200)
     Description = models.TextField(max_length=500, blank=True)
-    Status = models.CharField(max_length=20, choices=[('Open', 'Open'), ('Closed', 'Closed'), ('Draft', 'Draft')])
+    Is_released = models.BooleanField(default=False)
+    Is_open = models.BooleanField(default=True)
     PublishDate = models.DateTimeField()
     Category = models.CharField(max_length=20)
     TotalScore = models.IntegerField(null=True, blank=True)
     TimeLimit = models.IntegerField(null=True, blank=True)
-
-    class Meta:
-        db_table='tb_surveys'
 
 class BaseQuestion(models.Model):
     QuestionID = models.AutoField(primary_key=True)
@@ -64,13 +40,23 @@ class ChoiceQuestion(BaseQuestion):
 
 class ChoiceOption(models.Model):
     OptionID = models.AutoField(primary_key=True)
-    Question = models.ForeignKey(ChoiceQuestion, on_delete=models.CASCADE, related_name='options')
+    Question = models.ForeignKey(ChoiceQuestion, on_delete=models.CASCADE, related_name='choice_options')
     Text = models.CharField(max_length=200)
     IsCorrect = models.BooleanField(default=False)
+    
+class OtherOption(models.Model):
+    IsRequired = models.BooleanField(default=True)
+    Text = models.TextField(max_length=500)
 
 class RatingQuestion(BaseQuestion):
     MinRating = models.IntegerField(default=1)
     MaxRating = models.IntegerField(default=5)
+    
+class RatingOption(models.Model):
+    OptionID = models.AutoField(primary_key=True)
+    Question = models.ForeignKey(RatingQuestion, on_delete=models.CASCADE, related_name='rating_options')
+    Text = models.CharField(max_length=200)
+    IsCorrect = models.BooleanField(default=False)
 
 class Answer(models.Model):
     AnswerID = models.AutoField(primary_key=True)
@@ -86,11 +72,11 @@ class BlankAnswer(Answer):
 
 class ChoiceAnswer(Answer):
     Question = models.ForeignKey(ChoiceQuestion, on_delete=models.CASCADE)
-    Option = models.ForeignKey(ChoiceOption, on_delete=models.CASCADE)
+    ChoiceOptions = models.ForeignKey(ChoiceOption, on_delete=models.CASCADE)
 
 class RatingAnswer(Answer):
     Question = models.ForeignKey(RatingQuestion, on_delete=models.CASCADE)
-    Rating = models.IntegerField()
+    RatingOptions = models.ForeignKey(RatingOption, on_delete=models.CASCADE)
 
 class Submission(models.Model):
     SubmissionID = models.AutoField(primary_key=True)
