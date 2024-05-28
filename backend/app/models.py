@@ -7,6 +7,10 @@ class User(models.Model):
     password = models.CharField(max_length=255)
     email = models.EmailField(unique=True, max_length=100)
     CreateDate = models.DateTimeField(auto_now_add=True)
+<<<<<<< Updated upstream
+=======
+    is_active=models.BooleanField(default=False)
+>>>>>>> Stashed changes
 
 class Survey(models.Model):
     SurveyID = models.AutoField(primary_key=True)

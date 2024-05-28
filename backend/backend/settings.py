@@ -25,7 +25,8 @@ SECRET_KEY = "django-insecure-k@x^w4x9^xa_ep9w0m4_92@)mtqtat*)$xe^p$6lz##5eq!bkc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+CORS_ORIGIN_ALLOW_ALL = True
 
 
 # Application definition
@@ -37,12 +38,21 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+<<<<<<< Updated upstream
     "app",
+=======
+    "app",      #注册app
+    'corsheaders',  #跨域add
+>>>>>>> Stashed changes
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+<<<<<<< Updated upstream
+=======
+    'corsheaders.middleware.CorsMiddleware',  # 添加这一行
+>>>>>>> Stashed changes
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
