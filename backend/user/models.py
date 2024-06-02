@@ -7,11 +7,11 @@ from django.db.models import Sum, Q
 # Create your models here.
 class User(models.Model):
     username = models.CharField(primary_key=True, unique=True, max_length=50)
-    password = models.CharField(max_length=255)
+    password = models.CharField(max_length=25)
     email = models.EmailField(unique=True, max_length=100)
     CreateDate = models.DateTimeField(auto_now_add=True)
-    isActive=models.BooleanField(default=False)
-    Zhibi=models.IntegerField(default=0)
+    isActive = models.BooleanField(default=False)
+    Zhibi = models.IntegerField(default=0)
 
 class Survey(models.Model):
     SurveyID = models.AutoField(primary_key=True)
@@ -164,8 +164,8 @@ def handle_survey_release_and_calculate_totalscore(sender, instance, **kwargs):
         
         # Calculate TotalScore by summing up scores of related BlankQuestion and ChoiceQuestion
         total_score = (
-            instance.blankquestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
-            + instance.choicequestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
+            instance.blankQuestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
+            + instance.choiceQuestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
         )
         instance.TotalScore = total_score
         
