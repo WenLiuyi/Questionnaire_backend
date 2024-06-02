@@ -25,8 +25,7 @@ SECRET_KEY = "django-insecure-k@x^w4x9^xa_ep9w0m4_92@)mtqtat*)$xe^p$6lz##5eq!bkc
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
-CORS_ORIGIN_ALLOW_ALL = True
+#APPEND_SLASH = False
 
 
 # Application definition
@@ -47,11 +46,27 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     'corsheaders.middleware.CorsMiddleware',  # 添加这一行
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    #"django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8080',  # 允许Vue应用的域名访问
+]
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'OPTIONS',
+]
+
+CORS_ALLOW_HEADERS = [
+    '*',
+]
+
 
 ROOT_URLCONF = "backend.urls"
 
@@ -129,3 +144,15 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+#更改站点行为,站点将在每个请求上更新数据库/发送cookie
+SESSION_SAVE_EVERY_REQUEST = True
+
+#(重置密码的)电子邮件发送至命令行控制台
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST='smtp.qq.com'               #smtp服务地址
+EMAIL_PORT=25                               #端口（默认）
+EMAIL_HOST_USER = '1658441344@qq.com'    #发送邮件的邮箱,配置开通SMTP
+EMAIL_HOST_PASSWORD = 'ojgkodinkrosdehg'    #在邮箱中设置的客户端授权密码
+EMAIL_FROM = 'COWORK<1658441344@qq.com>' #收件人看到的发件人
+EMAIL_USE_TLS=True
