@@ -20,49 +20,34 @@ from django.utils import timezone
 
 serveAddress="http:127.0.0.1:8080"
 
-def get_user_info(request):
+def get_drafted_qs(request):
     if(request.method=='GET'):
-        data=json.loads(request.body)
-        username=data.username
-        
-        #user=User.objects.filter(username=username)
-        '''data={
-            'userid':user.UserID,
-            'nickname':user.username,
-            'email':user.email,
+        body=json.loads(request.body)
+        username=body['username']
 
-        }'''
-        data={
-            'nickname':data.username,
-            'email':"1234",
-        }
-        #return JsonResponse(data)
-        return HttpResponse(status=200,content=data)
     
 def update_user_email(request):
     if(request.method=='POST'):
-        data=json.loads(request.body)
-        username=request.POST.get("username")
-        email=request.POST.get("email")
+        body=json.loads(request.body)
+        username=body['username']
+        email=body['email']
 
         user=User.objects.filter(username=username)
         user.email=email
 
         user.save()
-
         return HttpResponse(status_code=200,content='Email updated successfully.')
     
 def update_user_password(request):
     if(request.method=='POST'):
-        data=json.loads(request.body)
-        username=request.POST.get("username")
-        password=request.POST.get("password")
+        body=json.loads(request.body)
+        username=body['username']
+        password=body['password']
 
         user=User.objects.filter(username=username)
         user.password=password
 
         user.save()
-
         return HttpResponse(status_code=200,content='Password updated successfully.')
 
 
@@ -96,7 +81,7 @@ def get_token(request):
 
     url = serveAddress+'user/' + token_confirm.generate_validate_token(username='username')
     '''此处将这个url发送到客户邮箱，我们这里就不进行邮件发送的操作了'''
-    return HttpResponse(status_code=200,content='Send registration email successfully.')
+    return HttpResponse(status=200,content=True)
 
 def send_registration_email(request):
     if(request.method=='POST'):
@@ -105,6 +90,19 @@ def send_registration_email(request):
         username=body['username']
         password=body['password']
         email=body['email']
+
+        if(email==False):
+            user=User.objects.filter(username=username)
+            #return HttpResponse(status=200,content=username)
+            if not user.exists():
+                return HttpResponse(status=200,content="1")
+            if(password!=user.first().password):
+                return HttpResponse(status=200,content="2")
+            return HttpResponse(status=200,content=username)
+
+        user1=User.objects.filter(username=username)
+        if user1.exists():
+            return HttpResponse(status=200,content=False)
 
         #创建新用户(尚未邮箱验证,非有效用户)
         user=User.objects.create(username=username,email=email,
@@ -129,7 +127,7 @@ def send_registration_email(request):
 
         return HttpResponse("请查看邮箱，按照提示激活账户。"
                                 "(验证链接只在一小时内有效).")
-    return HttpResponse(status_code=200,content='Send registration email successfully.')
+    return HttpResponse(status=200,content=True)
 
 #用户点击邮箱链接,调用视图activate_user(),验证激活用户:
 def activate_user(request,token):
@@ -141,4 +139,4 @@ def activate_user(request,token):
         return HttpResponse("抱歉，当前用户不存在，请重新注册。")
     user.is_active=True
     user.save()
-    return HttpResponse(status_code=200,content='Activate user successfully.')
+    return HttpResponse(status=200,content=True)
