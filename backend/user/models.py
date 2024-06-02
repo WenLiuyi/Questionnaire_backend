@@ -8,6 +8,7 @@ class User(models.Model):
     email = models.EmailField(unique=True, max_length=100)
     CreateDate = models.DateTimeField(auto_now_add=True)
     isActive=models.BooleanField(default=False)
+    Zhibi=models.IntegerField(default=0)
 
 class Survey(models.Model):
     SurveyID = models.AutoField(primary_key=True)
@@ -105,12 +106,12 @@ class RewardOffering(models.Model):
     RewardID = models.AutoField(primary_key=True)
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='rewards')
     Description = models.TextField()
-    Points = models.IntegerField()
+    TotalZhibi = models.IntegerField()
     AvailableQuota = models.IntegerField()
 
 class UserRewardRecord(models.Model):
     RecordID = models.AutoField(primary_key=True)
     Respondent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reward_records')
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='user_rewards')
-    PointsAwarded = models.IntegerField()
+    Zhibi = models.IntegerField()
     RedemptionDate = models.DateField()
