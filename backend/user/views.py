@@ -20,7 +20,7 @@ from django.utils import timezone
 
 serveAddress="http:127.0.0.1:8080"
 
-def get_drafted_qs(request):
+def get_qs_drafted(request):
     if(request.method=='GET'):
         body=json.loads(request.body)
         username=body['username']
@@ -86,19 +86,31 @@ def get_token(request):
 def send_registration_email(request):
     if(request.method=='POST'):
         body=json.loads(request.body)
-        user=User()
         username=body['username']
         password=body['password']
         email=body['email']
 
+
         if(email==False):
-            user=User.objects.filter(username=username)
+            user_queryset=User.objects.filter(username=username)
+            user=user_queryset.first()
             #return HttpResponse(status=200,content=username)
-            if not user.exists():
-                return HttpResponse(status=200,content="1")
-            if(password!=user.first().password):
-                return HttpResponse(status=200,content="2")
-            return HttpResponse(status=200,content=username)
+            if not user_queryset.exists():
+                data={'message':"1"}
+                return JsonResponse(data)
+                #return HttpResponse(status=200,content="1")
+            elif(password!=user.password):
+                data={'message':"2"}
+                return JsonResponse(data)
+                #return HttpResponse(status=200,content="2")
+            else:
+                data={
+                    'message':"0",
+                    'username':user.username,
+                    'password':user.password,
+                    'email':user.email
+                }
+            return JsonResponse(data)
 
         user1=User.objects.filter(username=username)
         if user1.exists():
