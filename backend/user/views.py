@@ -20,12 +20,42 @@ from django.utils import timezone
 
 serveAddress="http:127.0.0.1:8080"
 
-def get_qs_drafted(request):
+#当前用户已创建未发布的文件
+def get_drafted_qs(request,username):
     if(request.method=='GET'):
-        body=json.loads(request.body)
-        username=body['username']
+        user=User.objects.get(username=username)
+        qs_query=Survey.objects.filter(Owner=user,Is_released=False)
+        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
+        data={'data':data_list}
+        return JsonResponse(data)
 
+#当前用户发布的问卷
+def get_released_qs(request,username):
+    if(request.method=='GET'):
+        user=User.objects.get(username=username)
+        qs_query=Survey.objects.filter(Owner=user,Is_released=True)
+        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
+        data={'data':data_list}
+        return JsonResponse(data)
+
+#当前用户填写的问卷
+def get_filled_qs(request,username):
+    if(request.method=='GET'):
+        user=User.objects.get(username=username)
+        submission_query=Submission.objects.filter(Respondent=user)
+        data_list=[{'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,'SurveyID':submission.Survey.SurveyID} for submission in submission_query]
+        data={'data':data_list}
+        return JsonResponse(data)
     
+#问卷广场：所有问卷
+def get_all_released_qs(request):
+    if(request.method=='GET'):
+        qs_query=Survey.objects.all.order_by("-PublishDate")
+        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
+        data={'data':data_list}
+        return JsonResponse(data)
+
+
 def update_user_email(request):
     if(request.method=='POST'):
         body=json.loads(request.body)
