@@ -18,7 +18,53 @@ import base64
 from django.conf import settings as django_settings
 from django.utils import timezone
 
-serveAddress=""; 
+serveAddress="http:127.0.0.1:8080"
+
+def get_user_info(request):
+    if(request.method=='GET'):
+        data=json.loads(request.body)
+        username=data.username
+        
+        #user=User.objects.filter(username=username)
+        '''data={
+            'userid':user.UserID,
+            'nickname':user.username,
+            'email':user.email,
+
+        }'''
+        data={
+            'nickname':data.username,
+            'email':"1234",
+        }
+        #return JsonResponse(data)
+        return HttpResponse(status=200,content=data)
+    
+def update_user_email(request):
+    if(request.method=='POST'):
+        data=json.loads(request.body)
+        username=request.POST.get("username")
+        email=request.POST.get("email")
+
+        user=User.objects.filter(username=username)
+        user.email=email
+
+        user.save()
+
+        return HttpResponse(status_code=200,content='Email updated successfully.')
+    
+def update_user_password(request):
+    if(request.method=='POST'):
+        data=json.loads(request.body)
+        username=request.POST.get("username")
+        password=request.POST.get("password")
+
+        user=User.objects.filter(username=username)
+        user.password=password
+
+        user.save()
+
+        return HttpResponse(status_code=200,content='Password updated successfully.')
+
 
 class Token:
     def __init__(self, security_key):
@@ -47,27 +93,28 @@ class Token:
 
 token_confirm = Token(django_settings.SECRET_KEY)
 def get_token(request):
-    url = 'http:127.0.0.1:8000/app/token/' + token_confirm.generate_validate_token(username='username')
+
+    url = serveAddress+'user/' + token_confirm.generate_validate_token(username='username')
     '''此处将这个url发送到客户邮箱，我们这里就不进行邮件发送的操作了'''
-    return HttpResponse(url)
+    return HttpResponse(status_code=200,content='Send registration email successfully.')
 
 def send_registration_email(request):
     if(request.method=='POST'):
-        data=json.loads(request.body)
+        body=json.loads(request.body)
         user=User()
-        username=request.POST.get("username")
-        password=request.POST.get("password")
-        email=request.POST.get("email")
+        username=body['username']
+        password=body['password']
+        email=body['email']
 
         #创建新用户(尚未邮箱验证,非有效用户)
         user=User.objects.create(username=username,email=email,
-                                     password=password,CreateDate=timezone.now(),is_active=False)
+                                     password=password,CreateDate=timezone.now(),isActive=False)
         user.save()
 
         #生成令牌
         token = token_confirm.generate_validate_token(username)
         #active_key = base64.encodestring(userName)
-        url=""
+        url="/login"
 
         #发送邮件
         subject="'纸翼传问'新用户注册"
@@ -82,7 +129,7 @@ def send_registration_email(request):
 
         return HttpResponse("请查看邮箱，按照提示激活账户。"
                                 "(验证链接只在一小时内有效).")
-    return render(request,'catalog/create-account.html')
+    return HttpResponse(status_code=200,content='Send registration email successfully.')
 
 #用户点击邮箱链接,调用视图activate_user(),验证激活用户:
 def activate_user(request,token):
@@ -94,8 +141,4 @@ def activate_user(request,token):
         return HttpResponse("抱歉，当前用户不存在，请重新注册。")
     user.is_active=True
     user.save()
-    return render(request,'index.html')
-
-
-
-
+    return HttpResponse(status_code=200,content='Activate user successfully.')
