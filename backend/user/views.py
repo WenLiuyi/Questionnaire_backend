@@ -22,28 +22,23 @@ serveAddress="http:127.0.0.1:8080"
 
 def get_user_info(request):
     if(request.method=='GET'):
-        data=json.loads(request.body)
-        username=data.username
+        body=json.loads(request.body)
+        username=body['username']
         
-        #user=User.objects.filter(username=username)
-        '''data={
+        user=User.objects.filter(username=username)
+        data={
             'userid':user.UserID,
             'nickname':user.username,
             'email':user.email,
 
-        }'''
-        data={
-            'nickname':data.username,
-            'email':"1234",
         }
-        #return JsonResponse(data)
-        return HttpResponse(status=200,content=data)
+        return JsonResponse(data)
     
 def update_user_email(request):
     if(request.method=='POST'):
-        data=json.loads(request.body)
-        username=request.POST.get("username")
-        email=request.POST.get("email")
+        body=json.loads(request.body)
+        username=body['username']
+        email=body['email']
 
         user=User.objects.filter(username=username)
         user.email=email
@@ -106,6 +101,10 @@ def send_registration_email(request):
         password=body['password']
         email=body['email']
 
+        user=User.objects.filter(username=username)
+        if user.exists():
+            return HttpResponse(status=200,content=False)
+
         #创建新用户(尚未邮箱验证,非有效用户)
         user=User.objects.create(username=username,email=email,
                                      password=password,CreateDate=timezone.now(),isActive=False)
@@ -118,9 +117,9 @@ def send_registration_email(request):
 
         #发送邮件
         subject="'纸翼传问'新用户注册"
-        message=("Hello,"+username+"! 欢迎注册“纸翼传问”!\n"
+        message=("你好,"+username+"! 欢迎注册“纸翼传问”!\n"
                      +"请点击以下链接，以激活新账户:\n"
-                     +serveAddress+url+token)
+                     +serveAddress+url)
 
         email=EmailMessage(subject=subject,body=message,from_email="1658441344@qq.com",
                             to=[email],reply_to=["1658441344@qq.com"])
@@ -129,7 +128,7 @@ def send_registration_email(request):
 
         return HttpResponse("请查看邮箱，按照提示激活账户。"
                                 "(验证链接只在一小时内有效).")
-    return HttpResponse(status_code=200,content='Send registration email successfully.')
+    return HttpResponse(status_code=200,content=True)
 
 #用户点击邮箱链接,调用视图activate_user(),验证激活用户:
 def activate_user(request,token):
