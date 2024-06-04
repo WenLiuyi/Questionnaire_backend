@@ -18,8 +18,7 @@ class Survey(models.Model):
     Owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='surveys')
     Title = models.CharField(max_length=200)
     Description = models.TextField(max_length=500, blank=True)
-    Is_released = models.BooleanField(default=False)
-    Is_open = models.BooleanField(default=True)
+    Status = models.CharField(default='Unpublished', max_length=20, choices=[('Unpublished', 'Unpublished'), ('Published', 'Published'), ('Close', 'Close'), ('deleted', 'deleted')])
     PublishDate = models.DateTimeField()
     Category = models.CharField(max_length=20)
     TotalScore = models.IntegerField(null=True, blank=True)
@@ -88,7 +87,7 @@ class Submission(models.Model):
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='submissions')
     Respondent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
     SubmissionTime = models.DateTimeField(auto_now_add=True)
-    Status = models.CharField(max_length=20, choices=[('Unsubmitted', 'Unsubmitted'), ('Submitted', 'Submitted'), ('Graded', 'Graded')])
+    Status = models.CharField(default='Unsubmitted', max_length=20, choices=[('Unsubmitted', 'Unsubmitted'), ('Submitted', 'Submitted'), ('Graded', 'Graded')])
     Score = models.IntegerField(null=True, blank=True)
     Duration = models.DurationField(null=True, blank=True)
 
@@ -158,7 +157,7 @@ def handle_survey_release_and_calculate_totalscore(sender, instance, **kwargs):
     except Survey.DoesNotExist:
         return  # New record, skip
 
-    if not old_instance.Is_released and instance.Is_released:
+    if old_instance.Status == 'Unpublished' and instance.Status == 'Published':
         # Update PublishDate to current time
         instance.PublishDate = now()
         

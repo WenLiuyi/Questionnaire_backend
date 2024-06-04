@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from .models import User,Survey
 from .models import BaseQuestion,BlankQuestion,ChoiceQuestion,ChoiceOption,RatingQuestion
 from .models import Answer,BlankAnswer,ChoiceAnswer,RatingAnswer
-from .models import Submission,SurveyStatistic,Template,RewardOffering,UserRewardRecord   
+from .models import Submission,SurveyStatistic,Template,RewardOffering,UserRewardRecord
 
 import json
 from django.core.mail import BadHeaderError, send_mail
