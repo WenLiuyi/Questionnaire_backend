@@ -10,7 +10,7 @@ class User(models.Model):
     password = models.CharField(max_length=25)
     email = models.EmailField(unique=True, max_length=100)
     CreateDate = models.DateTimeField(auto_now_add=True)
-    isActive = models.BooleanField(default=False)
+    IsActive = models.BooleanField(default=False)
     Zhibi = models.IntegerField(default=0)
 
 class Survey(models.Model):
@@ -23,6 +23,8 @@ class Survey(models.Model):
     Category = models.CharField(max_length=20)
     TotalScore = models.IntegerField(null=True, blank=True)
     TimeLimit = models.IntegerField(null=True, blank=True)
+    IsOrder = models.BooleanField(default=True)
+    QuotaLimit = models.IntegerField(null=True, default=False)
 
 class BaseQuestion(models.Model):
     QuestionID = models.AutoField(primary_key=True)
