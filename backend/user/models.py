@@ -54,13 +54,9 @@ class OtherOption(models.Model):
 
 class RatingQuestion(BaseQuestion):
     MinRating = models.IntegerField(default=1)
+    MinText = models.TextField(max_length=500)
     MaxRating = models.IntegerField(default=5)
-    
-class RatingOption(models.Model):
-    OptionID = models.AutoField(primary_key=True)
-    Question = models.ForeignKey(RatingQuestion, on_delete=models.CASCADE, related_name='rating_options')
-    Text = models.CharField(max_length=200)
-    IsCorrect = models.BooleanField(default=False)
+    MaxText = models.TextField(max_length=500)
 
 class Answer(models.Model):
     AnswerID = models.AutoField(primary_key=True)
@@ -80,7 +76,7 @@ class ChoiceAnswer(Answer):
 
 class RatingAnswer(Answer):
     Question = models.ForeignKey(RatingQuestion, on_delete=models.CASCADE)
-    RatingOptions = models.ForeignKey(RatingOption, on_delete=models.CASCADE)
+    Rate = models.IntegerField(null=True, blank=True)
 
 class Submission(models.Model):
     SubmissionID = models.AutoField(primary_key=True)
