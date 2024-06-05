@@ -20,7 +20,43 @@ from django.utils import timezone
 
 serveAddress="http:127.0.0.1:8080"
 
-#当前用户已创建未发布的文件
+#修改用户头像
+
+#创建者删除已发布的问卷：
+#所有该问卷填写者处，该问卷的状态修改为已删除；填写者刷新问卷管理界面，保留被删除项，但无法继续填写
+'''def delete_released_qs(request):
+    if(request.method=='POST'):
+        try:
+            body=json.loads(request.body)
+            qsID=body['id']
+            if qsID is None:
+                return JsonResponse({'error': 'No ID provided'}, status=400) 
+            qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
+            submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录'''
+
+
+#删除未发布的问卷
+def delete_unreleased_qs(request):
+    if(request.method=='POST'):
+        try:
+            body=json.loads(request.body)
+            qsID=body['id']
+            if qsID is None:
+                return JsonResponse({'error': 'No ID provided'}, status=400) 
+            qs=Survey.objects.filter(SurveyID=qsID).first()
+            if qs is None:  
+                return JsonResponse({'error': 'No questionnaire found with the given ID'}, status=404)
+            qs.delete()
+
+            data={'message':'True'}
+            return JsonResponse(data)
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#当前用户已创建未发布的问卷
 def get_drafted_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
@@ -28,6 +64,7 @@ def get_drafted_qs(request,username):
         data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 #当前用户发布的问卷
 def get_released_qs(request,username):
@@ -37,6 +74,7 @@ def get_released_qs(request,username):
         data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 #当前用户填写的问卷
 def get_filled_qs(request,username):
@@ -46,6 +84,7 @@ def get_filled_qs(request,username):
         data_list=[{'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,'SurveyID':submission.Survey.SurveyID} for submission in submission_query]
         data={'data':data_list}
         return JsonResponse(data)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
     
 #问卷广场：所有问卷
 def get_all_released_qs(request):
@@ -54,31 +93,89 @@ def get_all_released_qs(request):
         data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-def update_user_email(request):
+'''个人中心界面'''
+#修改商店中的头像
+def modify_photo_in_shop(request):
     if(request.method=='POST'):
-        body=json.loads(request.body)
-        username=body['username']
-        email=body['email']
+        try:
+            body=json.loads(request.body)
+            username=body['username']
+            user=User.objects.get(username=username)
+            if user is None:
+                return JsonResponse({'error': 'No user found'}, status=400) 
+            
+            photonumber = body['photonumber']
+            status = body['status']
 
-        user=User.objects.filter(username=username)
-        user.email=email
+            #修改头像
+            photonumber = body['photonumber']
+            status = body['status']
+            user.set_array_element(photonumber,status)
 
-        user.save()
-        return HttpResponse(status_code=200,content='Email updated successfully.')
-    
-def update_user_password(request):
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#获取个人信息
+def get_user_info(request,username):
+    if(request.method=='GET'):
+        try:
+            user=User.objects.get(username=username)
+            if user is None:
+                return JsonResponse({'error': 'No user found'}, status=400) 
+            
+            photo=user.get_used_element()
+            data={'password':user.password,'email':user.email,'zhibi':user.zhibi,'photo':photo}
+            return JsonResponse(data)
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#修改个人信息
+def modify_user_info(request):
     if(request.method=='POST'):
-        body=json.loads(request.body)
-        username=body['username']
-        password=body['password']
+        try:
+            body=json.loads(request.body)
+            username=body['username']
+            user=User.objects.get(username=username)
+            if user is None:
+                return JsonResponse({'error': 'No user found'}, status=400) 
 
-        user=User.objects.filter(username=username)
-        user.password=password
+            #修改除头像外的其他信息
+            if 'email' in request.POST and 'password' in request.POST and 'zhibi' in request.POST:
+                email=body['email']
+                password=body['password']
+                zhibi=body['zhibi']
 
-        user.save()
-        return HttpResponse(status_code=200,content='Password updated successfully.')
+                user.email=email
+                user.password=password
+                user.zhibi=zhibi
+
+                data={'message':'True'}
+                return JsonResponse(data)
+            
+            #修改头像：
+            elif 'photonumber' in request.POST and 'status' in request.POST:
+                photonumber = body['photonumber']
+                status = body['status']
+                user.set_array_element(photonumber,status)
+            
+            else:
+                # 参数不正确或缺失  
+                return JsonResponse({'error': 'Invalid or missing parameters'}, status=400)
+
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 class Token:

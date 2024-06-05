@@ -1,7 +1,5 @@
 django==3.2.0
 mysqlclient==2.2.4
 django-cors-headers==4.3.1
-django-sqlalchemy
-sqlalchemy
 PyMySQL==1.1.1
 itsdangerous==2.2.0

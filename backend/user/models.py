@@ -1,4 +1,5 @@
 from django.db import models
+import json
 
 # Create your models here.
 class User(models.Model):
@@ -8,7 +9,30 @@ class User(models.Model):
     email = models.EmailField(unique=True, max_length=100)
     CreateDate = models.DateTimeField(auto_now_add=True)
     isActive=models.BooleanField(default=False)
-    Zhibi=models.IntegerField(default=0)
+    zhibi=models.IntegerField(default=0)
+    own_photos=models.TextField(default=json.dumps([0] * 30))
+
+    def set_array_element(self, index, value):
+        # 确保索引在有效范围内  
+        if 0 <= index < 30:  
+            photos_data = json.loads(self.own_photos)  
+            photos_data[index] = value  
+            self.own_photos = json.dumps(photos_data)  
+            self.save()  
+    
+    def get_array_element(self, index):  
+        # 确保索引在有效范围内  
+        if 0 <= index < 30:  
+            photos_data = json.loads(self.own_photos)  
+            return photos_data[index]  
+        return -1
+    
+    #获取当前正在使用的头像编号(默认为0，1是已购买，2是正在使用)
+    def get_used_element(self):
+        photos_data = json.loads(self.own_photos)
+        for i in range(0,30):
+            if(photos_data[i]==2): return i
+        return -1
 
 class Survey(models.Model):
     SurveyID = models.AutoField(primary_key=True)
@@ -17,6 +41,8 @@ class Survey(models.Model):
     Description = models.TextField(max_length=500, blank=True)
     Is_released = models.BooleanField(default=False)
     Is_open = models.BooleanField(default=True)
+    Is_deleted=models.BooleanField(default=False)
+
     PublishDate = models.DateTimeField()
     Category = models.CharField(max_length=20)
     TotalScore = models.IntegerField(null=True, blank=True)
@@ -85,7 +111,7 @@ class Submission(models.Model):
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='submissions')
     Respondent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='submissions')
     SubmissionTime = models.DateTimeField(auto_now_add=True)
-    Status = models.CharField(max_length=20, choices=[('Unsubmitted', 'Unsubmitted'), ('Submitted', 'Submitted'), ('Graded', 'Graded')])
+    Status = models.CharField(max_length=20, choices=[('Unsubmitted', 'Unsubmitted'), ('Submitted', 'Submitted'), ('Graded', 'Graded'),('Deleted','Deleted')])
     Duration = models.DurationField(null=True, blank=True)
 
 class SurveyStatistic(models.Model):
