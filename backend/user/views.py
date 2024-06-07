@@ -21,11 +21,28 @@ from django.db import transaction
 
 serveAddress="http:127.0.0.1:8080"
 
-#修改用户头像
 
-#创建者删除已发布的问卷：
+
+#创建者的填写记录
+def delete_filled_qs(request):
+    if(request.method=='POST'):
+        try:
+            body=json.loads(request.body)
+            submissionID=body['id']
+            if submissionID is None:
+                return JsonResponse({'error': 'No ID provided'}, status=400) 
+            submission=Submission.objects.filter(SubmissionID=submissionID).first()     #对应填写记录
+            submission.delete()
+
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#创建者删除已发布的问卷(将问卷状态改为Is_deleted=True)
 #所有该问卷填写者处，该问卷的状态修改为已删除；填写者刷新问卷管理界面，保留被删除项，但无法继续填写
-'''def delete_released_qs(request):
+def delete_released_qs(request):
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
@@ -33,20 +50,25 @@ serveAddress="http:127.0.0.1:8080"
             if qsID is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
             qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
+            qs.Is_deleted=True
 
             submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录
             
             # 使用 for 循环遍历 submission_query  
             with transaction.atomic():  # 你可以使用事务确保操作的原子性  
-            for submission in submission_query:  
-                    #该填写已提交：状态标记为被创建者删除
-                    if submission.Status=='Submitted':
+                for submission in submission_query:  
+                    #该填写已提交：状态不变
+                    #该填写未提交：填写状态改为'Deleted'(已被创建者删除)
+                    if submission.Status=='Unsubmitted':
                         submission.Status='Deleted'
-                        submission.delete()  
-                    else if submission.Status=='Unsubmitted':'''
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-#删除未发布的问卷
+#删除未发布的问卷(直接从数据库移除)
 def delete_unreleased_qs(request):
     if(request.method=='POST'):
         try:
@@ -81,13 +103,13 @@ def get_drafted_qs(request,username):
 def get_released_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
-        qs_query=Survey.objects.filter(Owner=user,Is_released=True)
+        qs_query=Survey.objects.filter(Owner=user,Is_released=True,Is_deleted=False)    #不显示已删除问卷
         data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'Category':survey.Category} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-#当前用户填写的问卷
+#当前用户的填写记录(包括被创建者删除的问卷的填写记录)
 def get_filled_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
@@ -246,7 +268,9 @@ def send_registration_email(request):
                     'message':"0",
                     'username':user.username,
                     'password':user.password,
-                    'email':user.email
+                    'email':user.email,
+                    'ownphotos':user.own_photos,
+                    'zhibi':user.zhibi,
                 }
             return JsonResponse(data)
 
