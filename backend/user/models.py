@@ -10,11 +10,11 @@ class User(models.Model):
     CreateDate = models.DateTimeField(auto_now_add=True)
     isActive=models.BooleanField(default=False)
     zhibi=models.IntegerField(default=0)
-    own_photos=models.TextField(default=json.dumps([0] * 30))
+    own_photos=models.TextField(default=json.dumps([0] * 18))
 
     def set_array_element(self, index, value):
         # 确保索引在有效范围内  
-        if 0 <= index < 30:  
+        if 0 <= index < 18:  
             photos_data = json.loads(self.own_photos)  
             photos_data[index] = value  
             self.own_photos = json.dumps(photos_data)  
@@ -22,7 +22,7 @@ class User(models.Model):
     
     def get_array_element(self, index):  
         # 确保索引在有效范围内  
-        if 0 <= index < 30:  
+        if 0 <= index < 18:  
             photos_data = json.loads(self.own_photos)  
             return photos_data[index]  
         return -1

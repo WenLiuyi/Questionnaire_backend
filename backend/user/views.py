@@ -264,12 +264,13 @@ def send_registration_email(request):
                 return JsonResponse(data)
                 #return HttpResponse(status=200,content="2")
             else:
+                photos_data = json.loads(user.own_photos)  
                 data={
                     'message':"0",
                     'username':user.username,
                     'password':user.password,
                     'email':user.email,
-                    'ownphotos':user.own_photos,
+                    'ownphotos':photos_data,
                     'zhibi':user.zhibi,
                 }
             return JsonResponse(data)
