@@ -17,6 +17,7 @@ from itsdangerous import URLSafeTimedSerializer as utsr
 import base64
 from django.conf import settings as django_settings
 from django.utils import timezone
+from django.db import transaction 
 
 serveAddress="http:127.0.0.1:8080"
 
@@ -32,7 +33,17 @@ serveAddress="http:127.0.0.1:8080"
             if qsID is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
             qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
-            submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录'''
+
+            submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录
+            
+            # 使用 for 循环遍历 submission_query  
+            with transaction.atomic():  # 你可以使用事务确保操作的原子性  
+            for submission in submission_query:  
+                    #该填写已提交：状态标记为被创建者删除
+                    if submission.Status=='Submitted':
+                        submission.Status='Deleted'
+                        submission.delete()  
+                    else if submission.Status=='Unsubmitted':'''
 
 
 #删除未发布的问卷
@@ -61,7 +72,7 @@ def get_drafted_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
         qs_query=Survey.objects.filter(Owner=user,Is_released=False)
-        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
+        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'Category':survey.Category} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -71,7 +82,7 @@ def get_released_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
         qs_query=Survey.objects.filter(Owner=user,Is_released=True)
-        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
+        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'Category':survey.Category} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -81,7 +92,7 @@ def get_filled_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
         submission_query=Submission.objects.filter(Respondent=user)
-        data_list=[{'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,'SurveyID':submission.Survey.SurveyID} for submission in submission_query]
+        data_list=[{'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,'SurveyID':submission.Survey.SurveyID,'Category':submission.Survey.Category} for submission in submission_query]
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -89,8 +100,8 @@ def get_filled_qs(request,username):
 #问卷广场：所有问卷
 def get_all_released_qs(request):
     if(request.method=='GET'):
-        qs_query=Survey.objects.all.order_by("-PublishDate")
-        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID} for survey in qs_query]
+        qs_query=Survey.objects.all().order_by("-PublishDate")
+        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'Category':survey.Category} for survey in qs_query]
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)

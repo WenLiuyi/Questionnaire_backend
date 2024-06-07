@@ -26,7 +26,7 @@
   - `Description`: 问卷描述，长度500字符。
   - `Status`: 问卷状态，长度20字符。如'Open', 'Closed', 'Draft','Deleted'，以适应问卷开启/关闭状态。
   - `PublishDate`: 发布日期。
-  - ` Category`: 问卷类别，长度20字符。
+  - ` Category`: 问卷类别：0 是普通问卷，1是投票问卷，2是报名问卷，3是考试问卷
   - ` TotalScore`: 整型，考试问卷的问卷总分，根据每题分数自动计算。
   - `TimeLimit`: 考试问卷限定的填写时间（单位：分钟），非考试问卷可设为NULL
 - **索引**: 在`SurveyID`上建立索引。

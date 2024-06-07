@@ -44,7 +44,8 @@ class Survey(models.Model):
     Is_deleted=models.BooleanField(default=False)
 
     PublishDate = models.DateTimeField()
-    Category = models.CharField(max_length=20)
+    #0 是普通问卷，1是投票问卷，2是报名问卷，3是考试问卷
+    Category = models.IntegerField(default=0)   
     TotalScore = models.IntegerField(null=True, blank=True)
     TimeLimit = models.IntegerField(null=True, blank=True)
 
