@@ -40,7 +40,7 @@ class Survey(models.Model):
     Title = models.CharField(max_length=200)
     Description = models.TextField(max_length=500, blank=True)
     Is_released = models.BooleanField(default=False)
-    Is_open = models.BooleanField(default=True)
+    Is_open = models.BooleanField(default=False)
     Is_deleted=models.BooleanField(default=False)
 
     PublishDate = models.DateTimeField()

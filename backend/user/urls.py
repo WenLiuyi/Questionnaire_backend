@@ -11,7 +11,8 @@ urlpatterns = [
     path('userManage/released/<str:username>',views.get_released_qs,name='get-released-qs-url'),
     path('userManage/filled/<str:username>',views.get_filled_qs,name='get-filled-qs-url'),
     path('userManage/square',views.get_all_released_qs,name='get-all-released-qs-url'),
+
     path('userManage/unreleased',views.delete_unreleased_qs,name='delete-unreleased-qs-url'),
-    path('userManage/released',views.delete_released_qs,name='delete-released-qs-url'),
+    path('userManage/released',views.update_or_delete_released_qs,name='delete-released-qs-url'),
     path('userManage/filled',views.delete_filled_qs,name='delete-filled-qs')
 ]
