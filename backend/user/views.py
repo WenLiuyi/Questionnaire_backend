@@ -25,14 +25,10 @@ serveAddress="http:127.0.0.1:8080"
 
 #创建者的填写记录
 def delete_filled_qs(request):
-    body=json.loads(request.body)
-    submissionID=body['id']
-    return {'id':submissionID}
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
-            submissionID=body['id']
-            return {'id':submissionID}
+            submissionID=body
             if submissionID is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
             submission=Submission.objects.filter(SubmissionID=submissionID).first()     #对应填写记录
@@ -48,7 +44,7 @@ def update_or_delete_released_qs(request):
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
-            flag=json.loads(request.flag)
+            flag=body['flag']
 
         #创建者删除已发布的问卷(将问卷状态改为Is_deleted=True)
         #所有该问卷填写者处，该问卷的状态修改为已删除；填写者刷新问卷管理界面，保留被删除项，但无法继续填写
@@ -96,7 +92,7 @@ def delete_unreleased_qs(request):
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
-            qsID=body['id']
+            qsID=body
             if qsID is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
             qs=Survey.objects.filter(SurveyID=qsID).first()
