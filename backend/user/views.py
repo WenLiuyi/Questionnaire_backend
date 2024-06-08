@@ -21,7 +21,13 @@ from django.db import transaction
 
 serveAddress="http:127.0.0.1:8080"
 
-#问卷编辑界面：接收问卷答案
+#问卷编辑界面：接收问卷的设计内容
+def save_qs_design(request):
+    if(request.method=='POST'):
+        try:
+            body=json.loads(request.body)
+            surveyID=body['questionnaireId']
+
 
 
 #创建者的填写记录
@@ -136,7 +142,21 @@ def get_filled_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
         submission_query=Submission.objects.filter(Respondent=user)
-        data_list=[{'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,'SurveyID':submission.Survey.SurveyID,'Category':submission.Survey.Category,'Description':submission.Survey.Description} for submission in submission_query]
+        data_list=[]
+
+         # 使用 for 循环遍历 submission_query  
+        with transaction.atomic():  # 你可以使用事务确保操作的原子性  
+            for submission in submission_query:
+                status=submission.Status
+                if status=="Unsubmitted":
+                    status_Chinese="未提交"
+                elif status=="Submitted" or status=="Graded":
+                    status_Chinese="已提交"
+                else:
+                    status_Chinese="已删除"
+                data_list.append({'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,
+                                  'SurveyID':submission.Survey.SurveyID,'Category':submission.Survey.Category,
+                                  'Description':submission.Survey.Description,'Status':status_Chinese})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
