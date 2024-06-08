@@ -65,6 +65,7 @@ def update_or_delete_released_qs(request):
                         #该填写未提交：填写状态改为'Deleted'(已被创建者删除)
                         if submission.Status=='Unsubmitted':
                             submission.Status='Deleted'
+                            submission.save()
             
             #更新创建
             else:
@@ -79,7 +80,8 @@ def update_or_delete_released_qs(request):
                 
                 #当前已发布，撤回
                 else:
-                    qs.Is_released=True
+                    qs.Is_released=False
+                qs.save()
 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
@@ -157,7 +159,7 @@ def get_all_released_qs(request):
 
 
 '''个人中心界面'''
-#修改商店中的头像
+#购买商店中的头像
 def modify_photo_in_shop(request):
     if(request.method=='POST'):
         try:
@@ -169,18 +171,17 @@ def modify_photo_in_shop(request):
             
             photonumber = body['photonumber']
             status = body['status']
-
             #修改头像
             photonumber = body['photonumber']
             status = body['status']
             user.set_array_element(photonumber,status)
 
             #修改纸币
-            zhibi=body['zhibi']
+            zhibi=body['money']
             user.zhibi=zhibi
-
+            user.save()
+            
             photos_data = json.loads(user.own_photos)  
-            ownphotos=photos_data
             data={'ownphotos':photos_data}
             return JsonResponse(data)
 
@@ -213,28 +214,28 @@ def modify_user_info(request):
         try:
             body=json.loads(request.body)
             username=body['username']
+            flag=body['flag']
+            print(username)
             user=User.objects.get(username=username)
             if user is None:
                 return JsonResponse({'error': 'No user found'}, status=400) 
 
             #修改除头像外的其他信息
-            if 'email' in request.POST and 'password' in request.POST and 'zhibi' in request.POST:
+            if flag==1:
                 email=body['email']
                 password=body['password']
-                zhibi=body['zhibi']
-
+                print(email,password)
                 user.email=email
                 user.password=password
-                user.zhibi=zhibi
-
-                data={'message':'True'}
-                return JsonResponse(data)
+                user.save()
             
             #修改头像：
-            elif 'photonumber' in request.POST and 'status' in request.POST:
+            elif flag==2:
                 photonumber = body['photonumber']
                 status = body['status']
+                print(photonumber,status)
                 user.set_array_element(photonumber,status)
+                user.save()
             
             else:
                 # 参数不正确或缺失  
@@ -244,7 +245,8 @@ def modify_user_info(request):
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    data={"message":"True"}
+    return JsonResponse(data)
 
 
 class Token:
