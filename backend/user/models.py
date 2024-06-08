@@ -30,7 +30,7 @@ class User(models.Model):
     #获取当前正在使用的头像编号(默认为0，1是已购买，2是正在使用)
     def get_used_element(self):
         photos_data = json.loads(self.own_photos)
-        for i in range(0,30):
+        for i in range(0,18):
             if(photos_data[i]==2): return i
         return -1
 

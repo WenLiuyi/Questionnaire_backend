@@ -25,10 +25,14 @@ serveAddress="http:127.0.0.1:8080"
 
 #创建者的填写记录
 def delete_filled_qs(request):
+    body=json.loads(request.body)
+    submissionID=body['id']
+    return {'id':submissionID}
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
             submissionID=body['id']
+            return {'id':submissionID}
             if submissionID is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
             submission=Submission.objects.filter(SubmissionID=submissionID).first()     #对应填写记录
@@ -141,8 +145,15 @@ def get_filled_qs(request,username):
 #问卷广场：所有问卷
 def get_all_released_qs(request):
     if(request.method=='GET'):
-        qs_query=Survey.objects.all().order_by("-PublishDate")
-        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'Category':survey.Category,'Description':survey.Description} for survey in qs_query]
+        qs_query=Survey.objects.filter(Is_released=True).order_by("-PublishDate")
+        data_list=[]
+
+        for survey in qs_query:
+            reward=RewardOffering.objects.filter(Survey=survey).first()
+            if reward is not None:
+                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':reward.TotalZhibi,'HeadCount':reward.AvailableQuota})
+            else:
+                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':None,'HeadCount':None})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -166,6 +177,11 @@ def modify_photo_in_shop(request):
             photonumber = body['photonumber']
             status = body['status']
             user.set_array_element(photonumber,status)
+
+            photos_data = json.loads(user.own_photos)  
+            ownphotos=photos_data
+            data={'ownphotos':photos_data}
+            return JsonResponse(data)
 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
