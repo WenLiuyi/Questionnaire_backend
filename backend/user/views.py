@@ -18,7 +18,6 @@ import base64
 from django.conf import settings as django_settings
 from django.utils import timezone
 from django.db import transaction 
-from django.db.models.deletion import ProtectedError 
 
 serveAddress="http:127.0.0.1:8080"
 
