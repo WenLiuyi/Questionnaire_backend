@@ -29,6 +29,8 @@
   - ` Category`: 问卷类别：0 是普通问卷，1是投票问卷，2是报名问卷，3是考试问卷
   - ` TotalScore`: 整型，考试问卷的问卷总分，根据每题分数自动计算。
   - `TimeLimit`: 考试问卷限定的填写时间（单位：分钟），非考试问卷可设为NULL
+  - `IsOrder` : 是否顺序展示，默认为True，为False时乱序展示
+  -  `QuotaLimit` : 最大填写人数（用于控制报名问卷的报名人数）
 - **索引**: 在`SurveyID`上建立索引。
 - **关系**: 通过`OwnerID`与`User`表关联，实现一对多关系。
 
@@ -44,6 +46,7 @@
     - `IsRequired`: 是否必填，布尔类型。
     - `QuestionNumber`: 题号。
     - ` Score`: 整型，针对考试问卷设置分数。
+    - `CorrectAnswer` : 正确答案。
   - **索引**: 在`QuestionID`上建立唯一索引，`SurveyID`和`QuestionNumber`上建立组合索引以优化问卷内部问题排序查询。
   - **约束**: 确保`SurveyID`有效且存在对应问卷记录，` Score`非负。
 
@@ -55,7 +58,6 @@
       - `SubmissionID`: 提交记录ID，外键关联至提交记录表。
       - `QuestionID`: 问题ID，外键关联至填空题表。
       - `AnswerContent`: 用户填写的答案内容，长度限制500字符。
-      - ` GetScore`：对考试问卷的填空题，提交后可对每题给分，null为未批改。
     - **索引**: 在`AnswerID`和`(SubmissionID, QuestionID)`上建立索引，以快速定位特定提交的特定问题答案。
     - **约束**：` GetScore`不能超过本题` Score`且非负。
 
@@ -109,6 +111,8 @@
     - `QuestionNumber`: 题号。
     - `MinRating`: 最低评分，非负整型，默认为1。
     - `MaxRating`: 最高评分，非负整型，默认为5，应大于`MinRating`。
+    - `MinText`：对最小分数的文字描述，字符串。
+    - `MaxText`：对最大分数的文字描述，字符串。
   - **索引**: 在`QuestionID`上建立唯一索引，`SurveyID`和`QuestionNumber`上建立组合索引。
   - **约束**: 确保`SurveyID`有效且存在对应问卷记录，`MaxRating`大于`MinRating`，两者均为非负。
 
@@ -131,7 +135,7 @@
   - `SurveyID`: 关联问卷ID，外键关联至`Survey.SurveyID`。
   - `RespondentID`: 填写者ID，外键关联至`User.UserID`。
   - `SubmissionTime`: 提交时间，时间戳。
-  - `Status`: 状态，20字符，未提交（暂存）、已提交、已批改、已删除(问卷被发布者删除)。
+  - `Status`: 状态，20字符，未提交（暂存）、已提交、已批改、已关闭/删除(问卷被发布者删除)。
   - `Duration`: 填写耗时（仅针对完成的问卷，单位秒，考试问卷可能需要此字段）。
 - **索引**:
   - 在`SurveyID`, `RespondentID`, 和`SubmissionTime`上分别建立索引，加速特定查询。

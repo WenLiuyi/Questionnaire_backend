@@ -21,6 +21,7 @@ from django.db import transaction
 
 serveAddress="http:127.0.0.1:8080"
 
+#问卷编辑界面：接收问卷答案
 
 
 #创建者的填写记录
@@ -147,7 +148,7 @@ def get_all_released_qs(request):
         for survey in qs_query:
             reward=RewardOffering.objects.filter(Survey=survey).first()
             if reward is not None:
-                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':reward.TotalZhibi,'HeadCount':reward.AvailableQuota})
+                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':reward.Zhibi,'HeadCount':reward.AvailableQuota})
             else:
                 data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':None,'HeadCount':None})
         data={'data':data_list}
@@ -173,6 +174,10 @@ def modify_photo_in_shop(request):
             photonumber = body['photonumber']
             status = body['status']
             user.set_array_element(photonumber,status)
+
+            #修改纸币
+            zhibi=body['zhibi']
+            user.zhibi=zhibi
 
             photos_data = json.loads(user.own_photos)  
             ownphotos=photos_data
