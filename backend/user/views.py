@@ -37,8 +37,68 @@ class GetStoreFillView(APIView):
         if survey is None:
             return HttpResponse(content='Questionnaire not found', status=400) 
 
-#问卷填写界面：从前端接收问卷的设计+填写内容
+#问卷填写界面：从前端接收用户的填写记录
+def get_submission(request):
+    if(request.method=='POST'):
+        try:
+            body=json.loads(request.body)
+            surveyID=body['surveyID']    #问卷id
+            status=body['status']  #填写记录状态
+            submissionID=body['submissionID']   #填写记录ID
+            username=body['usename']     #填写者
+            submissionList=body['question']     #填写记录
+            duration=body['duration']   
 
+            survey=Survey.objects.get(SurveyID=surveyID)
+            if survey is None:
+                return HttpResponse(content='Questionnaire not found',status=404)
+            
+            user=User.objects.get(username=username)
+            if user is None:
+                return HttpResponse(content='User not found',status=404)
+
+            #当前不存在该填写记录，创建：
+            if submissionID==-1:
+                submission=Submission.objects.create(Survey=survey,Respondent=user,
+                                             SubmissionTime=timezone.now(),Status=status,
+                                             Duration=duration)
+            #已存在，删除填写记录的所有内容
+            else:
+                submission=Submission.objects.get(SubmissionID=submissionID)
+                if submission is None:
+                    return HttpResponse(content='Submission not found',status=404)
+                
+                #所有选择题的填写记录
+                ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
+                for choiceAnswer in ChoiceAnswer_query:
+                    choiceAnswer.delete()
+                
+                #所有填空题的填写记录
+                BlankAnswer_query=BlankAnswer.objects.filter(Submission=submission)
+                for BlankAnswer in BlankAnswer_query:
+                    BlankAnswer.delete()
+                
+                #所有评分题的填写记录
+                RatingAnswer_query=BlankAnswer.objects.filter(Submission=submission)
+                for RatingAnswer in BlankAnswer_query:
+                    RatingAnswer.delete()
+
+            index=1
+            for submission in submissionList:
+                questionID=submission["questionID"]
+                question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
+                if question is None:
+                    return HttpResponse(content='Question not found',status=404)
+                if question["Category"]==1:     #单选题
+                    ChoiceAnswer.objects.create()
+                    
+
+
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 #问卷编辑界面：向前端传输问卷设计内容
@@ -82,10 +142,11 @@ class GetQuestionnaireView(APIView):
                 #将所有选项顺序排列
                 options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
                 for option in options_query:
-                    optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect})
-                
+                    optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionID':option.OptionID})
+                    print(option.Text)
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
-                                     'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"]})
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
+                                     'optionList':optionList})
                 
             elif question["Category"]==3:                  #填空题
                 print("#3")
