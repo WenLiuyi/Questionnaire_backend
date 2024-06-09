@@ -320,12 +320,15 @@ def save_qs_design(request):
                                              Is_open=False,Is_deleted=False,Category=catecory,
                                              TotalScore=0,TimeLimit=timelimit,IsOrder=isOrder,QuotaLimit=people
                                             )
+                survey.QuotaLimit=people
             #已有该问卷的编辑记录
             else:
                 survey=Survey.objects.get(SurveyID=surveyID)
                 survey.Is_released=Is_released
                 if survey is None:
                     return HttpResponse(content='Questionnaire not found', status=400) 
+                survey.QuotaLimit=people    #该问卷的报名人数
+
                 #该问卷的所有选择题
                 choiceQuestion_query=ChoiceQuestion.objects.filter(Survey=survey)
                 for choiceQuestion in choiceQuestion_query:
@@ -357,10 +360,7 @@ def save_qs_design(request):
                     print(index,question["optionCnt"])
                     print(question["type"])
                     optionList=question['optionList']
-                    survey=Survey.objects.get(SurveyID=surveyID)
-                    if survey is None:
-                        return HttpResponse(content="hello",status=100)
-                    print(survey.SurveyID)
+
                     question=ChoiceQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
                                                                QuestionNumber=index,Score=question["score"],Category=question["type"],
                                                                OptionCnt=question["optionCnt"])
@@ -376,19 +376,9 @@ def save_qs_design(request):
                         jdex=jdex+1
                 
                 elif question["type"]==3:                          #填空
-                    print("*")
-                    survey=Survey.objects.get(SurveyID=surveyID)
-                    if survey is None:
-                        return HttpResponse(content="hello",status=100)
-                    print("#")
-                    print("1")
-                    print(question)
-                    print(question["correctAnswer"])
-                    print("2")
                     question=BlankQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
                                                               Score=question["score"],QuestionNumber=index,Category=question["type"],
                                                               CorrectAnswer=question["correctAnswer"])
-                    print("#")
                     question.save()
                 
                 else:                                           #评分题
