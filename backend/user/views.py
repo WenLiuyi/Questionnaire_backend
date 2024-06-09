@@ -106,11 +106,12 @@ class GetStoreFillView(APIView):
                     print("#2")
                     optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])#一或多条记录
                     #用户未填该多选题
-                    if not optionAnswer_query.exists():answer=[-1]
+                    if not optionAnswer_query.exists():answer=[]
                     #用户填了这个多选题，有一条/多条答案记录
-                    answer=[]
-                    for optionAnswer in optionAnswer_query:
-                        answer.append(optionAnswer.ChoiceOptions.OptionID)
+                    else:
+                        answer=[]
+                        for optionAnswer in optionAnswer_query:
+                            answer.append(optionAnswer.ChoiceOptions.OptionID)
 
                 optionList=[]
                 #将所有选项顺序排列
