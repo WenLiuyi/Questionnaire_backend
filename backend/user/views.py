@@ -693,8 +693,8 @@ from django.db.models import Count, Sum, Q
 
 def survey_statistics(request):
     if request.method=='GET':
-        survey_id = request.GET.get('surveyId')
-        survey = Survey.objects.get(id=survey_id)
+        survey_id = request.GET.get('surveyID')
+        survey = Survey.objects.get(SurveyID=survey_id)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
