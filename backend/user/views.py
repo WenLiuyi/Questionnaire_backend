@@ -699,7 +699,7 @@ def survey_statistics(request):
     for question in questions:
         q_stats = {
             'type': question._meta.model_name,
-            'text': question.text,
+            'question': question.text,
             'number': question.number,
             'is_required': question.is_required,
             'filled_count': Answer.objects.filter(question=question).count(),
@@ -708,21 +708,38 @@ def survey_statistics(request):
             'correct_count': 0,
             'options_stats': [],
             'rating_stats': [],
-            'blank_answers': []
+            'blank_stats': []
         }
 
     #答案信息
-        if question.type == '1': 
+        if question.type == 'ChoiceQuestion': 
             for option in question.choice_options.all():
                 option_stats = {
                     'number': option.number,
                     'is_correct': option.is_correct,
-                    'selected_count': ChoiceAnswer.objects.filter(question=question, selected_options__contains=[option.number]).count()
+                    'content': option.Text,
+                    'count': ChoiceAnswer.objects.filter(question=question, selected_options__contains=[option.number]).count()
                 }
                 q_stats['options_stats'].append(option_stats)
                 if option.is_correct and survey.category == '3':
                     q_stats['correct_answer'] = chr(ord('A') + option.number - 1)
                     q_stats['correct_count'] += option_stats['selected_count']
 
-        elif question.type == '2':
-            ratings = Ratin
+        elif question.type == 'RatingQuestion':
+            ratings = RatingAnswer.objects.filter(question=question).values('rate').annotate(count=Count('rate'))
+            for rating in ratings:
+                q_stats['rating_stats'].append({
+                    'rate': rating['rate'],
+                    'count': rating['count']
+                })
+
+        elif question.type == 'BlankQuestion':  
+            answers = BlankAnswer.objects.filter(question=question).values('content').annotate(count=Count('content'))
+            for answer in answers:
+                q_stats['blank_stats'].append[{
+                    'content': answer['content'],
+                    'count': answer['count']
+                }]
+                
+        stats['questions_stats'].append(q_stats)
+    return JsonResponse(stats)
