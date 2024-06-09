@@ -700,10 +700,11 @@ def survey_statistics(request):
                 'choicequestion': 1 if question.MaxSelectable == 1 else 2,
                 'ratingquestion': 4
             }
-        question_type_num = type_mapping.get(question._meta.model_name, 0)
     
         #题目信息
         for question in questions:
+            question_type_num = type_mapping.get(question._meta.model_name, 0)
+            
             q_stats = {
                 'type': question_type_num,
                 'question': question.text,
@@ -719,19 +720,33 @@ def survey_statistics(request):
             }
     
         #答案信息
-            if question.type == 'choicequestion': 
+            if question._meta.model_name == 'choicequestion':
+                correct_option_numbers = [option.number for option in question.choice_options.filter(is_correct=True)]
+                q_stats['correct_answer'] = correct_option_numbers
                 for option in question.choice_options.all():
                     option_stats = {
                         'number': option.number,
                         'is_correct': option.is_correct,
                         'content': option.Text,
-                        'count': ChoiceAnswer.objects.filter(question=question, selected_options__contains=[option.number]).count()
+                        'count': ChoiceAnswer.objects.filter(question=question, ChoiceOptions=option).count()
                     }
                     q_stats['options_stats'].append(option_stats)
-                    if option.is_correct and survey.category == '3':
-                        q_stats['correct_answer'] = chr(ord('A') + option.number - 1)
-                        q_stats['correct_count'] += option_stats['selected_count']
     
+                correct_submissions = set()
+                for correct_number in correct_option_numbers:
+                    submissions_with_correct_option = ChoiceAnswer.objects.filter(
+                        question=question,
+                        ChoiceOptions__number=correct_number
+                    ).values_list('Submission', flat=True)
+    
+                    # 更新完全正确回答的提交集合
+                    if not correct_submissions:
+                        correct_submissions = set(submissions_with_correct_option)
+                    else:
+                        correct_submissions.intersection_update(submissions_with_correct_option)
+    
+                q_stats['correct_count'] = len(correct_submissions)
+            
             elif question.type == 'ratingquestion':
                 ratings = RatingAnswer.objects.filter(question=question).values('rate').annotate(count=Count('rate'))
                 for rating in ratings:
@@ -743,10 +758,10 @@ def survey_statistics(request):
             elif question.type == 'blankquestion':  
                 answers = BlankAnswer.objects.filter(question=question).values('content').annotate(count=Count('content'))
                 for answer in answers:
-                    q_stats['blank_stats'].append[{
+                    q_stats['blank_stats'].append({
                         'content': answer['content'],
                         'count': answer['count']
-                    }]
+                    })
                     
             stats['questions_stats'].append(q_stats)
         return JsonResponse(stats)
