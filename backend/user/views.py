@@ -624,21 +624,23 @@ import pandas as pd
 #交叉分析
 def cross_analysis(request,questionID1,questionID2):
     if request.method == 'GET':
-        #questionID1 = request.GET.get('QuestionID1')
-        #questionID2 = request.GET.get('QuestionID2')
+        question1 = ChoiceQuestion.object.get(QuestionID=QuestionID1)
+        question2 = ChoiceQuestion.object.get(QuestionID=QuestionID2)
 
         if questionID1 is None or questionID2 is None:
             return JsonResponse({'error': 'Missing QuestionID(s)'}, status=400)
 
-        answers1 = Answer.objects.filter(QuestionID=questionID1)
-        answers2 = Answer.objects.filter(QuestionID=questionID2)
+        survey = question1.Survey
 
         results = []
-        for answer1 in answers1:
-            for answer2 in answers2:
-                cnt = Submission.objects.filter(answers__in=[answer1, answer2]).count()
+        for options1 in question1.choice_options.all():
+            for options2 in answers2.choice_options.all():
+                cnt = 0
+                for submission in Submission.objects.filter(Survey=survey):
+                    if submission.objects.filter(choiceanswers_answers=options1).exists() and submission.objects.filter(choiceanswers_answers=options2).exists():
+                        cnt += 1
                 results.append({
-                    'content': f"{answer1.Content}-{answer2.Content}",
+                    'content': f"{options1.Text}-{options2.Text}",
                     'cnt': cnt
                 })
 
@@ -660,7 +662,12 @@ def download_submissions(request):
         if survey.Category == '3':
             data['分数'] = []
 
-        questions = survey.questions.all()
+        questions = list(chain(
+                BlankQuestion.objects.filter(Survey=survey),
+                ChoiceQuestion.objects.filter(Survey=survey),
+                RatingQuestion.objects.filter(Survey=survey)
+            ))
+        
 
         for question in questions:
             data[question.Text] = []
