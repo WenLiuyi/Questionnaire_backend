@@ -852,10 +852,10 @@ def activate_user(request,token):
 import pandas as pd
 
 #交叉分析
-def cross_analysis(request,questionID1,questionID2):
+def cross_analysis(request, questionID1, questionID2):
     if request.method == 'GET':
-        question1 = ChoiceQuestion.object.get(QuestionID=QuestionID1)
-        question2 = ChoiceQuestion.object.get(QuestionID=QuestionID2)
+        question1 = ChoiceQuestion.object.get(QuestionID=questionID1)
+        question2 = ChoiceQuestion.object.get(QuestionID=questionID2)
 
         if questionID1 is None or questionID2 is None:
             return JsonResponse({'error': 'Missing QuestionID(s)'}, status=400)
@@ -890,6 +890,8 @@ def download_submissions(request, surveyID):
 
         if survey.Category == '3':
             data['分数'] = []
+            
+        print(data)
 
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
@@ -901,11 +903,11 @@ def download_submissions(request, surveyID):
         
 
         for q in questions:
-            if q["Categpry"] < 3:
+            if q["Category"] < 3:
                 question = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"])
-            elif q["Categpry"] == 3:
+            elif q["Category"] == 3:
                 question = BlankQuestion.objects.get(QuestionID=q["QuestionID"])
-            elif q["Categpry"] == 4:
+            elif q["Category"] == 4:
                 question = RatingQuestion.objects.get(QuestionID=q["QuestionID"])
             printf("get a quesion, id = %d\n",question.QuestionID)
             data[question.Text] = []
@@ -917,7 +919,21 @@ def download_submissions(request, surveyID):
             if survey.Category == '3':
                 data['分数'].append(submission.Score)
 
-            for answer in submission.answers.all():
+            all_answer = itertools.chain(BlankAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
+                                         ChoiceAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
+                                         RatingAnswer.objects.filter(Submission=submission).values('AnswerID').all())
+                                                    
+            # 将迭代器转换为列表  
+            answers = list(all_answer)
+
+            for a in answers:
+                if ChoiceAnswer.objects.get(AnswerID=q["AnswerID"]):
+                    answer = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
+                elif BlankAnswer.objects.get(AnswerID=q["AnswerID"]):
+                    answer = BlankQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
+                elif RatingAnswer.objects.get(AnswerID=q["AnswerID"]):
+                    answer = RatingQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
+
                 if isinstance(answer, BlankAnswer):
                     data[answer.Question.Text].append(answer.Content)
                 elif isinstance(answer, ChoiceAnswer):
