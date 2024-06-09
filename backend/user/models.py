@@ -71,15 +71,14 @@ class BlankQuestion(BaseQuestion):
     CorrectAnswer=models.TextField(max_length=100,null=True)
 
 class ChoiceQuestion(BaseQuestion):
-    HasOtherOption = models.BooleanField(default=False)
-    MaxSelectable = models.IntegerField(default=1)
+    MaxSelectable = models.IntegerField(default=1,null=True)
     OptionCnt=models.IntegerField(default=0)
 
 class ChoiceOption(models.Model):
     OptionID = models.AutoField(primary_key=True)
     Question = models.ForeignKey(ChoiceQuestion, on_delete=models.CASCADE, related_name='choice_options')
     Text = models.CharField(max_length=200)
-    IsCorrect = models.BooleanField(default=False)
+    IsCorrect = models.BooleanField(default=False,null=True)
     OptionNumber=models.IntegerField(null=False,default=0)
     
 class OtherOption(models.Model):
@@ -87,9 +86,9 @@ class OtherOption(models.Model):
     Text = models.TextField(max_length=500)
 
 class RatingQuestion(BaseQuestion):
-    MinRating = models.IntegerField(default=1)
+    MinRating = models.IntegerField(default=1,null=True)
     MinText = models.TextField(max_length=500,null=True)
-    MaxRating = models.IntegerField(default=5)
+    MaxRating = models.IntegerField(default=5,null=True)
     MaxText = models.TextField(max_length=500,null=True)
     
 
@@ -149,7 +148,7 @@ class UserRewardRecord(models.Model):
     Zhibi = models.IntegerField()
     RedemptionDate = models.DateField()
 
-'''
+
 #Submission状态变化时更新SurveyStatistice和自动打分
 @receiver(pre_save, sender=Submission)
 def update_survey_statistic_on_submission_status_change(sender, instance, **kwargs):
@@ -223,4 +222,3 @@ def handle_survey_release_and_calculate_totalscore(sender, instance, **kwargs):
 def create_survey_statistic(sender, instance, created, **kwargs):
     if created:  # Only create SurveyStatistic when a new Survey is created
         SurveyStatistic.objects.create(Survey=instance)
-'''

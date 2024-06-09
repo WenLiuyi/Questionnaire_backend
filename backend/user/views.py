@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.db import transaction 
 
 from rest_framework.views import APIView
+import itertools
 
 from itertools import chain  
 from operator import attrgetter 
@@ -45,7 +46,7 @@ class GetQuestionnaireView(APIView):
     def get(self, request, survey_id, *args, **kwargs):  
         design = request.GET.get('design', 'false')  # 默认为'false'  
         design = design.lower() == 'true'  # 将字符串转换为布尔值  
-
+        print(survey_id)
         survey=Survey.objects.get(SurveyID=survey_id)
         if survey is None:
             return HttpResponse(content='Questionnaire not found', status=400) 
@@ -54,36 +55,54 @@ class GetQuestionnaireView(APIView):
         people=survey.QuotaLimit
         TimeLimit=survey.TimeLimit
 
-        questionList=[]
-
+        '''
         blank_questions = list(BlankQuestion.objects.filter(Survey=survey).values_list('id', 'QuestionNumber'))  
         choice_questions = list(ChoiceQuestion.objects.filter(Survey=survey).values_list('id', 'QuestionNumber'))  
         rating_questions = list(RatingQuestion.objects.filter(Survey=survey).values_list('id', 'QuestionNumber'))  
-  
-        # 将这些列表合并，并基于QuestionNumber进行排序  
-        combined_questions = sorted(chain(blank_questions, choice_questions, rating_questions), key=lambda x: x[1])  
 
-        for question in combined_questions:
-            if question.Category==1 or question.Category==2:    #选择题
+        # 将这些列表合并，并基于QuestionNumber进行排序  
+        combined_questions = sorted(chain(blank_questions, choice_questions, rating_questions), key=lambda x: x[1])
+        '''
+
+        all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
+                                                    ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID').all())
+                                                    
+        # 将迭代器转换为列表  
+        all_questions_list = list(all_questionList_iterator)
+        all_questions_list.sort(key=lambda x: x['QuestionNumber']) 
+
+        questionList=[]
+
+        #print(all_questions)
+        for question in all_questions_list:
+            if question["Category"]==1 or question["Category"]==2:    #选择题
                 optionList=[]
+                print("#1")
                 #将所有选项顺序排列
-                options_query=ChoiceOption.objects.filter(question=question).order_by('OptionNumber')
+                options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
                 for option in options_query:
                     optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect})
                 
-                #将问题加入questionList
-                questionList.append({'type':question.Category,'question':question.Text,'questionID':question.QuestionID,
-                                     'isNecessary':question.IsRequired,'score':question.Score,'optionCnt':question.OptionCnt})
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"]})
                 
-            elif question.Category==3:                  #填空题
-                questionList.append({'type':question.Category,'question':question.Text,'questionID':question.QuestionID,
-                                     'isNecessary':question.IsRequired,'score':question.Score,'correctAnswer':question.CorrectAnswer})
+            elif question["Category"]==3:                  #填空题
+                print("#3")
                 
-            elif question.Category==4:                  #评分题
-                questionList.append({'type':question.Category,'question':question.Text,'questionID':question.QuestionID,
-                                     'isNecessary':question.IsRequired,'score':question.Score})
-            
-        data={'Title':survey.Title,'category':survey.Category,'people':Survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],'correctAnswer':question["CorrectAnswer"]})
+                print(question["Category"],question["Text"],question["QuestionID"],question["IsRequired"],question["Score"],question["CorrectAnswer"])
+
+            elif question["Category"]==4:                  #评分题
+                print("#4")
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"]})
+
+        
+        print(survey.Title)
+        print(survey.Description)
+        data={'Title':survey.Title,'category':survey.Category,'people':survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
               'description':survey.Description,'questionList':questionList}
         
         return JsonResponse(data, status=200)
@@ -141,7 +160,7 @@ def save_qs_design(request):
                 for ratingQuestion in ratingQuestion_query:
                     ratingQuestion.delete()
 
-            index=0
+            index=1
             for question in questionList:
                 print(question["type"])
                 if question["type"]==1 or question["type"]==2:        #单选/多选
@@ -151,36 +170,36 @@ def save_qs_design(request):
                     print(question["isNecessary"])
                     print(question["socre"])
                     print(index,question["optionCnt"])
-                    print("type:")
                     print(question["type"])
-                    #question["isNecessary"],question["score"],index,question["optionCnt"],question["type"])
+                    optionList=question['optionList']
                     question=ChoiceQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
-                                                               Score=question["socre"],QuestionNumber=index,
-                                                               OptionCnt=question["optionCnt"],Category=question["type"])
-                    print("*")
+                                                               QuestionNumber=index,Score=question["socre"],Category=question["type"],
+                                                               OptionCnt=question["optionCnt"])
                     question.save()
                     #所有选项:
-                    jdex=0
-                    optionList=question.optionList
+                    jdex=1
                     for option in optionList:
+                        print(option)
+                        print(option['content'])
+                        #print(option['content'])
                         option=ChoiceOption.objects.create(Question=question,Text=option["content"],
-                                                               OptionNumber=jdex,IsCorrect=option["isCorrect"])
+                                                               IsCorrect=option["isCorrect"],OptionNumber=jdex)
                         option.save()
                         jdex=jdex+1
                 
                 elif question["type"]==3:                          #填空
-                    print("*")
                     question=BlankQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
-                                                              Score=question["score"],QuestionNumber=index,
+                                                              Score=question["socre"],QuestionNumber=index,
                                                               CorrectAnswer=question["correctAnswer"],Category=question["type"])
                     question.save()
                 
                 else:                                           #评分题
-                    question=RatingQuestion.objectas.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
-                                                              Score=question.score,QuestionNumber=question.QuestionNumber,Category=question.type)
+                    question=RatingQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
+                                                              Score=question["socre"],QuestionNumber=index,Category=question["type"])
                     question.save()
+                print("*")
                 index=index+1
-            return HttpResponse(content='Questionnaire saved successfully', status=400) 
+            return HttpResponse(content='Questionnaire saved successfully', status=200) 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
@@ -340,7 +359,7 @@ def check_qs(request,username,questionnaireId,type):
             else:
                 data={'message':False,"content":"当前问卷已被撤回"}
         else:
-            data={'message':True,"content":"可以开始/继续填写"}
+            data={'message':"True","content":"可以开始/继续填写"}
         return JsonResponse(data)
     
     #考试问卷：每个用户只可提交一次
@@ -355,7 +374,7 @@ def check_qs(request,username,questionnaireId,type):
             else:
                 data={'message':False,"content":"当前问卷已被撤回"}
         else:
-            data={'message':True,"content":"可以开始/继续填写"}
+            data={'message':"True","content":"可以开始/继续填写"}
         return JsonResponse(data)
     
     #报名问卷：超过人数，不可以再报名
@@ -372,7 +391,7 @@ def check_qs(request,username,questionnaireId,type):
         if unsubmitted_query.exists():
             data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
         
-        data={'message':True,"content":"可以开始/继续填写"}
+        data={'message':"True","content":"可以开始/继续填写"}
         return JsonResponse(data)   
 
     #普通问卷
@@ -382,7 +401,7 @@ def check_qs(request,username,questionnaireId,type):
         if unsubmitted_query.exists():
             data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
         else:
-            data={'message':True,"content":"可以开始/继续填写"}
+            data={'message':"True","content":"可以开始/继续填写"}
 
         return JsonResponse(data)   
     
