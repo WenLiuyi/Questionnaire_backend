@@ -84,6 +84,8 @@ class GetStoreFillView(APIView):
         #print(all_questions)
         for question in all_questions_list:
             if question["Category"]==1 or question["Category"]==2:    #选择题
+                #该单选题的用户选项
+
                 optionList=[]
                 print("#1")
                 #将所有选项顺序排列
@@ -164,14 +166,37 @@ def get_submission(request):
                     RatingAnswer.delete()
 
             index=1
-            for submission in submissionList:
-                questionID=submission["questionID"]
+            for submissionItem in submissionList:
+                questionID=submissionItem["questionID"]     #问题ID
+                answer=submissionItem['value']        #用户填写的答案
                 question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
                 if question is None:
                     return HttpResponse(content='Question not found',status=404)
-                if question["Category"]==1:     #单选题
-                    ChoiceAnswer.objects.create()
-                    
+                
+                if question["Category"]==1:     #单选题：Answer为选项ID
+                    option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
+                    if option is None:
+                        return HttpResponse(content="Option not found",status=404)
+                    choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
+                    choiceAnswer.save()
+
+                elif question["Category"]==2:     #多选题：Answer为选项ID的数组
+                    #为每个用户选择的选项，创建一条ChoiceAnswer记录
+                    for optionID in answer:
+                        option=ChoiceOption.objects.get(OptionID=optionID)     #用户选择的选项
+                        if option is None:
+                            return HttpResponse(content="Option not found",status=404)
+                        choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
+                        choiceAnswer.save()
+
+                elif question["Category"]==3:     #填空题：answer为填写的内容
+                    blankAnswer=BlankAnswer.objects.create(Question=question,Submission=submission,Content=answer)
+                    choiceAnswer.save()
+                
+                else:       #评分题：answer为填写的内容
+                    ratingAnswer=RatingAnswer.objects.create(Question=question,Submission=submission,Rate=answer)
+                    ratingAnswer.save()
+                
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
@@ -204,7 +229,7 @@ class GetQuestionnaireView(APIView):
 
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
-                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID').all())
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())
                                                     
         # 将迭代器转换为列表  
         all_questions_list = list(all_questionList_iterator)
@@ -276,7 +301,7 @@ def save_qs_design(request):
                                             )
             #已有该问卷的编辑记录
             else:
-                survey=Survey.objects.get(surveyID=surveyID)
+                survey=Survey.objects.get(SurveyID=surveyID)
                 survey.Is_released=Is_released
                 if survey is None:
                     return HttpResponse(content='Questionnaire not found', status=400) 
@@ -300,19 +325,23 @@ def save_qs_design(request):
                     ratingQuestion.delete()
 
             index=1
+            print(questionList)
             for question in questionList:
                 print(question["type"])
                 if question["type"]==1 or question["type"]==2:        #单选/多选
-                    print("*")
                     print(question)
                     print(question["question"])
                     print(question["isNecessary"])
-                    print(question["socre"])
+                    print(question["score"])
                     print(index,question["optionCnt"])
                     print(question["type"])
                     optionList=question['optionList']
+                    survey=Survey.objects.get(SurveyID=surveyID)
+                    if survey is None:
+                        return HttpResponse(content="hello",status=100)
+                    print(survey.SurveyID)
                     question=ChoiceQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
-                                                               QuestionNumber=index,Score=question["socre"],Category=question["type"],
+                                                               QuestionNumber=index,Score=question["score"],Category=question["type"],
                                                                OptionCnt=question["optionCnt"])
                     question.save()
                     #所有选项:
@@ -320,23 +349,29 @@ def save_qs_design(request):
                     for option in optionList:
                         print(option)
                         print(option['content'])
-                        #print(option['content'])
                         option=ChoiceOption.objects.create(Question=question,Text=option["content"],
                                                                IsCorrect=option["isCorrect"],OptionNumber=jdex)
                         option.save()
                         jdex=jdex+1
                 
                 elif question["type"]==3:                          #填空
+                    print("*")
+                    survey=Survey.objects.get(SurveyID=surveyID)
+                    if survey is None:
+                        return HttpResponse(content="hello",status=100)
+                    print("#")
+                    print(question["correctAnswer"],1)
+                    CorrectAnswer=question["correctAnwser"]
                     question=BlankQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
-                                                              Score=question["socre"],QuestionNumber=index,
-                                                              CorrectAnswer=question["correctAnswer"],Category=question["type"])
+                                                              Score=question["score"],QuestionNumber=index,Category=question["type"],
+                                                              CorrectAnswer=question["correctAnwser"])
+                    print("#")
                     question.save()
                 
                 else:                                           #评分题
                     question=RatingQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
-                                                              Score=question["socre"],QuestionNumber=index,Category=question["type"])
+                                                              Score=question["score"],QuestionNumber=index,Category=question["type"])
                     question.save()
-                print("*")
                 index=index+1
             return HttpResponse(content='Questionnaire saved successfully', status=200) 
         except json.JSONDecodeError:  
@@ -782,7 +817,7 @@ def cross_analysis(request,questionID1,questionID2):
                 cnt = 0
                 for submission in Submission.objects.filter(Survey=survey):
                     choice_answers = submission.choiceanswers_answers.all()
-                    if choice_answers.filter(ChoiceOptions=options1).exists() and choice_answers.filter(ChoiceOptions=options2).exists():
+                    if choice_answers.filter(answers=options1).exists() and choice_answers.filter(answers=options2).exists():
                         cnt += 1
                 results.append({
                     'content': f"{options1.Text}-{options2.Text}",
@@ -845,8 +880,8 @@ from django.db.models import Count, Sum, Q
 
 def survey_statistics(request):
     if request.method=='GET':
-        survey_id = request.GET.get('surveyID')
-        survey = Survey.objects.get(SurveyID=survey_id)
+        survey_id = request.GET.get('surveyId')
+        survey = Survey.objects.get(id=survey_id)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
