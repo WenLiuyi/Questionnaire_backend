@@ -30,6 +30,6 @@ urlpatterns = [
     path('questionnaireFill/<str:userName>/<int:surveyID>/<int:submissionID>', GetStoreFillView.as_view(), name='get-store-fill-url'),
 
     #数据分析:
-    #path('dataPre/<int:QuestionID1>/<int:QuestionID2>/',views.cross_analysis,name='cross-analysis-url'),
-    #path('dataPre/<int:surveyID>',views.survey_statistics,name='survey-statistics-url')
+    path('dataPre/<int:QuestionID1>/<int:QuestionID2>/',views.cross_analysis,name='cross-analysis-url'),
+    path('dataPre/<int:surveyID>',views.survey_statistics,name='survey-statistics-url')
 ]

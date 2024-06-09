@@ -840,10 +840,9 @@ def cross_analysis(request,questionID1,questionID2):
         return JsonResponse(results)
 
 #下载表格
-def download_submissions(request):
+def download_submissions(request, surveyID):
     if request.method == 'GET':
-        survey_id = request.GET.get('surveyId')
-        survey = Submission.objects.filter(Survey__SurveyID=survey_id).first().Survey
+        survey = Submission.objects.filter(Survey__SurveyID=surveyID).first().Survey
 
         submissions = Submission.objects.filter(Survey__SurveyID=survey_id, Status__in=['Submitted', 'Graded'])
 
@@ -891,10 +890,9 @@ def download_submissions(request):
 
 from django.db.models import Count, Sum, Q
 
-def survey_statistics(request):
+def survey_statistics(request, surveyID):
     if request.method=='GET':
-        survey_id = request.GET.get('surveyId')
-        survey = Survey.objects.get(id=survey_id)
+        survey = Survey.objects.get(SurveyID=surveyID)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
@@ -938,7 +936,7 @@ def survey_statistics(request):
                 'blank_stats': []
             }
     
-        #答案信息
+            #答案信息
             if question._meta.model_name == 'choicequestion':
                 correct_option_numbers = [option.number for option in question.choice_options.filter(is_correct=True)]
                 q_stats['correct_answer'] = correct_option_numbers
