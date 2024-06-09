@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "user",      #注册app
     'corsheaders',  #跨域add
+    'rest_framework', 
 ]
 
 MIDDLEWARE = [

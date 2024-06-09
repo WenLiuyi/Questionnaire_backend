@@ -19,15 +19,158 @@ from django.conf import settings as django_settings
 from django.utils import timezone
 from django.db import transaction 
 
+from rest_framework.views import APIView
+
+from itertools import chain  
+from operator import attrgetter 
+
 serveAddress="http:127.0.0.1:8080"
 
-#问卷编辑界面：接收问卷的设计内容
+#问卷填写界面：向前端传输问卷当前暂存的填写记录
+class GetStoreFillView(APIView):
+    def get(self, request, *args, **kwargs):  
+        # 从查询参数中获取userName和surveyID  
+        user_name = request.GET.get('userName')  
+        survey_id = request.GET.get('surveyID')  
+        survey=Survey.objects.get(SurveyID=survey_id)
+        if survey is None:
+            return HttpResponse(content='Questionnaire not found', status=400) 
+
+#问卷填写界面：从前端接收问卷的设计+填写内容
+
+
+
+#问卷编辑界面：向前端传输问卷设计内容
+class GetQuestionnaireView(APIView):
+    def get(self, request, survey_id, *args, **kwargs):  
+        design = request.GET.get('design', 'false')  # 默认为'false'  
+        design = design.lower() == 'true'  # 将字符串转换为布尔值  
+
+        survey=Survey.objects.get(SurveyID=survey_id)
+        if survey is None:
+            return HttpResponse(content='Questionnaire not found', status=400) 
+        title=survey.Title
+        catecory=survey.Category
+        people=survey.QuotaLimit
+        TimeLimit=survey.TimeLimit
+
+        questionList=[]
+
+        blank_questions = list(BlankQuestion.objects.filter(Survey=survey).values_list('id', 'QuestionNumber'))  
+        choice_questions = list(ChoiceQuestion.objects.filter(Survey=survey).values_list('id', 'QuestionNumber'))  
+        rating_questions = list(RatingQuestion.objects.filter(Survey=survey).values_list('id', 'QuestionNumber'))  
+  
+        # 将这些列表合并，并基于QuestionNumber进行排序  
+        combined_questions = sorted(chain(blank_questions, choice_questions, rating_questions), key=lambda x: x[1])  
+
+        for question in combined_questions:
+            if question.Category==1 or question.Category==2:    #选择题
+                optionList=[]
+                #将所有选项顺序排列
+                options_query=ChoiceOption.objects.filter(question=question).order_by('OptionNumber')
+                for option in options_query:
+                    optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect})
+                
+                #将问题加入questionList
+                questionList.append({'type':question.Category,'question':question.Text,'questionID':question.QuestionID,
+                                     'isNecessary':question.IsRequired,'score':question.Score,'optionCnt':question.OptionCnt})
+                
+            elif question.Category==3:                  #填空题
+                questionList.append({'type':question.Category,'question':question.Text,'questionID':question.QuestionID,
+                                     'isNecessary':question.IsRequired,'score':question.Score,'correctAnswer':question.CorrectAnswer})
+                
+            elif question.Category==4:                  #评分题
+                questionList.append({'type':question.Category,'question':question.Text,'questionID':question.QuestionID,
+                                     'isNecessary':question.IsRequired,'score':question.Score})
+            
+        data={'Title':survey.Title,'category':survey.Category,'people':Survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
+              'description':survey.Description,'questionList':questionList}
+        
+        return JsonResponse(data, status=200)
+
+
+#问卷编辑界面：从前端接收问卷的设计内容
 def save_qs_design(request):
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
-            surveyID=body['questionnaireId']
+            surveyID=body['surveyID']    #问卷id
+            title=body['title']  #问卷标题
+            catecory=body['catecory']   #问卷类型（普通0、投票1、报名2、考试3）
+            isOrder=body['isOrder'] #是否顺序展示（考试问卷）
+            people=body['people']   #报名人数（报名问卷）
+            timelimit=body['timeLimit']
+            username=body['username']   #创建者用户名
+            description=body['description'] #问卷描述
+            Is_released=body['Is_released'] #保存/发布
 
+            questionList=body['questionList']   #问卷题目列表
+
+            user=User.objects.get(username=username)
+            if user is None:        
+                return HttpResponse(content='User not found', status=400) 
+
+            #当前不存在该问卷，创建：
+            if surveyID==-1:
+                survey=Survey.objects.create(Owner=user,Title=title,
+                                             Description=description,Is_released=Is_released,
+                                             Is_open=False,Is_deleted=False,Category=catecory,
+                                             TotalScore=0,TimeLimit=timelimit,IsOrder=isOrder,QuotaLimit=people
+                                            )
+            #已有该问卷的编辑记录
+            else:
+                survey=Survey.objects.get(surveyID=surveyID)
+                survey.Is_released=Is_released
+                if survey is None:
+                    return HttpResponse(content='Questionnaire not found', status=400) 
+                #该问卷的所有选择题
+                choiceQuestion_query=ChoiceQuestion.objects.filter(Survey=survey)
+                for choiceQuestion in choiceQuestion_query:
+                    #删除该选择题的所有选项
+                    choiceOption_query=ChoiceOption.objects.filter(Question=choiceQuestion)
+                    for choiceOption in choiceOption_query:
+                        choiceOption.delete()
+                    choiceQuestion.delete()
+
+                #删除该问卷的所有填空题
+                blankQuestion_query=BlankQuestion.objects.filter(Survey=survey)
+                for blankQuestion in blankQuestion_query:
+                    blankQuestion.delete()
+                
+                #删除该问卷的所有评分题
+                ratingQuestion_query=RatingQuestion.objects.filter(Survey=survey)
+                for ratingQuestion in ratingQuestion_query:
+                    ratingQuestion.delete()
+
+            for question in questionList:
+                if question.type==1 or question.type==2:        #单选/多选
+                    question=ChoiceQuestion.objects.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
+                                                               Score=question.score,QuestionNumber=question.QuestionNumber,
+                                                               OptionCnt=question.optionCnt,Category=question.type)
+                    question.save()
+                    #所有选项:
+                    optionList=question.optionList
+                    for option in optionList:
+                        option=ChoiceOption.objects.create(Question=question,Text=option.content,
+                                                               OptionNumber=option.optionNumber,IsCorrect=option.isCorrect)
+                        option.save()
+                
+                elif question.type==3:                          #填空
+                    question=BlankQuestion.objects.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
+                                                              Score=question.score,QuestionNumber=question.QuestionNumber,
+                                                              CorrectAnswer=question.correctAnswer,Category=question.type)
+                    question.save()
+                
+                else:                                           #评分题
+                    question=RatingQuestion.objectas.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
+                                                              Score=question.score,QuestionNumber=question.QuestionNumber,Category=question.type)
+                    question.save()
+            return HttpResponse(content='Questionnaire saved successfully', status=400) 
+        except json.JSONDecodeError:  
+            return JsonResponse({'error': 'Invalid JSON body'}, status=400)
+        except Exception as e:  
+            return JsonResponse({'error': str(e)}, status=500) 
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 #创建者的填写记录
@@ -373,3 +516,74 @@ def activate_user(request,token):
     user.is_active=True
     user.save()
     return HttpResponse(status=200,content=True)
+
+#额外需要的包
+import pandas as pd
+
+#交叉分析
+def cross_analysis(request,questionID1,questionID2):
+    if request.method == 'GET':
+        #questionID1 = request.GET.get('QuestionID1')
+        #questionID2 = request.GET.get('QuestionID2')
+
+        if questionID1 is None or questionID2 is None:
+            return JsonResponse({'error': 'Missing QuestionID(s)'}, status=400)
+
+        answers1 = Answer.objects.filter(QuestionID=questionID1)
+        answers2 = Answer.objects.filter(QuestionID=questionID2)
+
+        results = []
+        for answer1 in answers1:
+            for answer2 in answers2:
+                cnt = Submission.objects.filter(answers__in=[answer1, answer2]).count()
+                results.append({
+                    'content': f"{answer1.Content}-{answer2.Content}",
+                    'cnt': cnt
+                })
+
+        return JsonResponse(results)
+
+#下载表格
+def download_submissions(request):
+    if request.method == 'GET':
+        survey_id = request.GET.get('surveyId')
+        survey = Submission.objects.filter(Survey__SurveyID=survey_id).first().Survey
+
+        submissions = Submission.objects.filter(Survey__SurveyID=survey_id, Status__in=['Submitted', 'Graded'])
+
+        data = {
+            '填写者': [],
+            '提交时间': [],
+        }
+
+        if survey.Category == '3':
+            data['分数'] = []
+
+        questions = survey.questions.all()
+
+        for question in questions:
+            data[question.Text] = []
+
+        for submission in submissions:
+            data['填写者'].append(submission.Respondent.username)
+            data['提交时间'].append(submission.SubmissionTime)
+
+            if survey.Category == '3':
+                data['分数'].append(submission.Score)
+
+            for answer in submission.answers.all():
+                if isinstance(answer, BlankAnswer):
+                    data[answer.Question.Text].append(answer.Content)
+                elif isinstance(answer, ChoiceAnswer):
+                    choices = [chr(ord('A') + choice - 1) for choice in answer.selected_choices]
+                    data[answer.Question.Text].append(', '.join(choices))
+                elif isinstance(answer, RatingAnswer):
+                    data[answer.Question.Text].append(answer.Rate)
+
+        df = pd.DataFrame(data)
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="问卷填写情况.xlsx"'
+        df.to_excel(response, index=False)
+
+        return response
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

@@ -1,5 +1,7 @@
 from django.urls import path
 from user import views
+from .views import GetStoreFillView
+from .views import GetQuestionnaireView 
 
 urlpatterns = [
     path('login', views.send_registration_email, name="send-registration-email-url"),
@@ -19,5 +21,13 @@ urlpatterns = [
     path('userManage/filled',views.delete_filled_qs,name='delete-filled-qs'),
 
     #问卷编辑界面：
-    #path('questionnaireDesign',views.save_qs_design,name='save-qs-design-url'),
+    path('questionnaireDesign',views.save_qs_design,name='save-qs-design-url'),
+    path('questionnaireDesign/<int:survey_id>/', GetQuestionnaireView.as_view(), name='get_questionnaire'),
+
+    #问卷填写界面：
+    path('questionnaireFill/', GetStoreFillView.as_view(), name='get-store-fill-url'),
+
+    #数据分析:
+    path('dataPre/<int:QuestionID1>/<int:QuestionID2>/',views.cross_analysis,name='cross-analysis-url'),
+    #path('dataPre/<int:surveyID>')
 ]

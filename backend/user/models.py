@@ -47,7 +47,7 @@ class Survey(models.Model):
     Is_open = models.BooleanField(default=False)
     Is_deleted=models.BooleanField(default=False)
 
-    PublishDate = models.DateTimeField()
+    PublishDate = models.DateTimeField(null=True)
     #0 是普通问卷，1是投票问卷，2是报名问卷，3是考试问卷
     Category = models.IntegerField(default=0)   
     TotalScore = models.IntegerField(null=True, blank=True)
@@ -60,8 +60,9 @@ class BaseQuestion(models.Model):
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='%(class)s_questions')
     Text = models.TextField(max_length=500)
     IsRequired = models.BooleanField(default=True)
-    Number = models.IntegerField()
+    QuestionNumber = models.IntegerField(null=False,default=0)
     Score = models.IntegerField(null=True, blank=True)
+    Category=models.IntegerField(null=False)    #题目类型：单选为1；多选为2；填空题为3；评分题为4
 
     class Meta:
         abstract = True
@@ -72,13 +73,14 @@ class BlankQuestion(BaseQuestion):
 class ChoiceQuestion(BaseQuestion):
     HasOtherOption = models.BooleanField(default=False)
     MaxSelectable = models.IntegerField(default=1)
-    Score = models.IntegerField(null=True, blank=True)
+    OptionCnt=models.IntegerField(null=False,default=0)
 
 class ChoiceOption(models.Model):
     OptionID = models.AutoField(primary_key=True)
     Question = models.ForeignKey(ChoiceQuestion, on_delete=models.CASCADE, related_name='choice_options')
     Text = models.CharField(max_length=200)
     IsCorrect = models.BooleanField(default=False)
+    OptionNumber=models.IntegerField(null=False,default=0)
     
 class OtherOption(models.Model):
     IsRequired = models.BooleanField(default=True)
@@ -208,8 +210,8 @@ def handle_survey_release_and_calculate_totalscore(sender, instance, **kwargs):
         
         # Calculate TotalScore by summing up scores of related BlankQuestion and ChoiceQuestion
         total_score = (
-            instance.blankQuestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
-            + instance.choiceQuestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
+            instance.blankquestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
+            + instance.choicequestion_questions.filter(Score__isnull=False).aggregate(score_sum=Sum('Score'))['score_sum'] or 0
         )
         instance.TotalScore = total_score
         
