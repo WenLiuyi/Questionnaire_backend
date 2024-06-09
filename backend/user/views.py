@@ -307,6 +307,7 @@ def save_qs_design(request):
             username=body['userName']   #创建者用户名
             description=body['description'] #问卷描述
             Is_released=body['Is_released'] #保存/发布
+            print(Is_released)
 
             questionList=body['questionList']   #问卷题目列表
             user=User.objects.get(username=username)
@@ -323,8 +324,13 @@ def save_qs_design(request):
                 survey.QuotaLimit=people
             #已有该问卷的编辑记录
             else:
+                print(surveyID)
+                print("*")
                 survey=Survey.objects.get(SurveyID=surveyID)
+                print("*")
+                print(survey.Is_released)
                 survey.Is_released=Is_released
+                print(survey.Is_released)
                 if survey is None:
                     return HttpResponse(content='Questionnaire not found', status=400) 
                 
@@ -335,6 +341,7 @@ def save_qs_design(request):
                 survey.TimeLimit=timelimit
                 survey.IsOrder=isOrder
                 survey.QuotaLimit=people    #该问卷的报名人数
+                survey.save()
 
                 #该问卷的所有选择题
                 choiceQuestion_query=ChoiceQuestion.objects.filter(Survey=survey)
@@ -432,6 +439,7 @@ def update_or_delete_released_qs(request):
                     return JsonResponse({'error': 'No ID provided'}, status=400) 
                 qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
                 qs.Is_deleted=True
+                qs.Is_released=False
 
                 submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录
             
@@ -503,7 +511,12 @@ def get_released_qs(request,username):
     if(request.method=='GET'):
         user=User.objects.get(username=username)
         qs_query=Survey.objects.filter(Owner=user,Is_released=True,Is_deleted=False)    #不显示已删除问卷
-        data_list=[{'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'Category':survey.Category,'Description':survey.Description} for survey in qs_query]
+
+        data_list=[]
+        for survey in qs_query:
+            submissionCnt=Submission.objects.filter(Survey=survey).count()  #该问卷已提交的填写份数
+            data_list.append({'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,
+                    'Category':survey.Category,'Description':survey.Description,'FilledPeople':submissionCnt})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
