@@ -891,9 +891,9 @@ from django.db.models import Count, Sum, Q
 
 def survey_statistics(request, surveyID):
     if (request.method=='GET'):
+
         survey = Survey.objects.get(SurveyID=surveyID)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
-    
         #问卷基础信息
         stats = {
             'title': survey.Title,
@@ -904,12 +904,16 @@ def survey_statistics(request, surveyID):
             'average_score': survey_stat.AverageScore,
             'questions_stats': []
         }
+
+        print(stats)
         
         questions = list(chain(
                 BlankQuestion.objects.filter(Survey=survey),
                 ChoiceQuestion.objects.filter(Survey=survey),
                 RatingQuestion.objects.filter(Survey=survey)
             ))
+        
+        print(questions)
         
         #题目信息
         for question in questions:
