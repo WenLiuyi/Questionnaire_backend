@@ -923,13 +923,10 @@ def survey_statistics(request, surveyID):
         
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
-                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())
-        print("*****")                                
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())                              
         # 将迭代器转换为列表  
         questions = list(all_questionList_iterator)
-        print("*****")
         questions.sort(key=lambda x: x['QuestionNumber']) 
-        print("*****")
         #题目信息
         for q in questions:
             if q["Category"] < 3:
@@ -951,8 +948,6 @@ def survey_statistics(request, surveyID):
                 'rating_stats': [],
                 'blank_stats': []
             }
-            print(q_stats)
-            print("----")
     
             #答案信息
             if question.Category < 3:
@@ -963,14 +958,10 @@ def survey_statistics(request, surveyID):
                         'content': option.Text,
                         'count': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
                     }
-                    print("get a option:")
-                    print(option_stats)
                     q_stats['options_stats'].append(option_stats)
                 
                 correct_option_numbers = [option.Number for option in question.choice_options.filter(IsCorrect=True)]
                 q_stats['correct_answer'] = correct_option_numbers
-                print(correct_option_numbers)
-                print(q_stats['correct_answer'])
                 
                 correct_submissions = set()
                 for correct_number in correct_option_numbers:
@@ -984,9 +975,6 @@ def survey_statistics(request, surveyID):
                         correct_submissions = set(submissions_with_correct_option)
                     else:
                         correct_submissions.intersection_update(submissions_with_correct_option)
-
-                print("get correct_count:")
-                peint(len(correct_submissions))
                 q_stats['correct_count'] = len(correct_submissions)
             
             elif question.Category == 4:
