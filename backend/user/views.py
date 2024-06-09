@@ -298,6 +298,7 @@ def save_qs_design(request):
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
+            print(body)
             surveyID=body['surveyID']    #问卷id
             title=body['title']  #问卷标题
             catecory=body['category']   #问卷类型（普通0、投票1、报名2、考试3）
@@ -307,7 +308,6 @@ def save_qs_design(request):
             username=body['userName']   #创建者用户名
             description=body['description'] #问卷描述
             Is_released=body['Is_released'] #保存/发布
-            print(Is_released)
 
             questionList=body['questionList']   #问卷题目列表
             user=User.objects.get(username=username)
@@ -324,19 +324,13 @@ def save_qs_design(request):
                 survey.QuotaLimit=people
             #已有该问卷的编辑记录
             else:
-                print(surveyID)
-                print("*")
                 survey=Survey.objects.get(SurveyID=surveyID)
-                print("*")
-                print(survey.Is_released)
-                survey.Is_released=Is_released
-                print(survey.Is_released)
                 if survey is None:
                     return HttpResponse(content='Questionnaire not found', status=400) 
                 
                 survey.Title=title
-                survey.Description=description
                 survey.Is_released=Is_released
+                survey.Description=description
                 survey.Category=catecory
                 survey.TimeLimit=timelimit
                 survey.IsOrder=isOrder
@@ -628,7 +622,7 @@ def get_all_released_qs(request):
             else:
                 data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,
                                   'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,
-                                  'Reward':None,'HeadCount':None})
+                                  'Reward':None,'HeadCount':survey.QuotaLimit})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)

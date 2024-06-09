@@ -43,7 +43,7 @@ class Survey(models.Model):
     Owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='surveys')
     Title = models.CharField(max_length=200)
     Description = models.TextField(max_length=500, blank=True)
-    Is_released = models.BooleanField(default=False)
+    Is_released = models.BooleanField(blank=True)
     Is_open = models.BooleanField(default=False)
     Is_deleted=models.BooleanField(default=False)
 
@@ -148,7 +148,7 @@ class UserRewardRecord(models.Model):
     Zhibi = models.IntegerField()
     RedemptionDate = models.DateField()
 
-
+'''
 #Submission状态变化时更新SurveyStatistice和自动打分
 @receiver(pre_save, sender=Submission)
 def update_survey_statistic_on_submission_status_change(sender, instance, **kwargs):
@@ -222,3 +222,4 @@ def handle_survey_release_and_calculate_totalscore(sender, instance, **kwargs):
 def create_survey_statistic(sender, instance, created, **kwargs):
     if created:  # Only create SurveyStatistic when a new Survey is created
         SurveyStatistic.objects.create(Survey=instance)
+'''
