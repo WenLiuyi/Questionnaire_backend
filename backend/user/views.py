@@ -29,13 +29,43 @@ serveAddress="http:127.0.0.1:8080"
 
 #问卷填写界面：向前端传输问卷当前暂存的填写记录
 class GetStoreFillView(APIView):
+    '''def get(self, request, survey_id, *args, **kwargs):  
+        design = request.GET.get('design', 'false')  # 默认为'false'  
+        design = design.lower() == 'true'  # 将字符串转换为布尔值  
+        print(survey_id)'''
+
     def get(self, request, *args, **kwargs):  
-        # 从查询参数中获取userName和surveyID  
-        user_name = request.GET.get('userName')  
-        survey_id = request.GET.get('surveyID')  
-        survey=Survey.objects.get(SurveyID=survey_id)
+        # 从查询参数中获取userName和surveyID   
+        userName = kwargs.get('userName')  
+        surveyID = kwargs.get('surveyID')   
+        submissionID=kwargs.get('submissionID')  
+        print(userName) 
+        print(surveyID)
+        print(submissionID)
+
+        user=User.objects.get(username=userName)
+        if user is None:
+            return HttpResponse(content='User not found', status=404) 
+        
+        survey=Survey.objects.get(SurveyID=surveyID)
         if survey is None:
-            return HttpResponse(content='Questionnaire not found', status=400) 
+            return HttpResponse(content='Questionnaire not found', status=404)   
+        
+        #从问卷广场界面进入：查找该用户是否有该问卷未提交的填写记录
+        if submissionID==-1:
+            submission_query=Submission.objects.filter(Respondent=user,Survey=survey,Status='Unsubmitted')
+            if submission_query.exists():
+                submissionID=submission_query.first().SubmissionID  #找到未填写的记录
+            else:       
+                return HttpResponse(content='Submission not existed', status=404) 
+        
+        #从问卷管理界面进入：
+        submission=Submission.objects.get(SubmissionID=submissionID)
+        if submission is None:
+            return HttpResponse(content='Submission not found', status=404) 
+        
+
+         
 
 #问卷填写界面：从前端接收用户的填写记录
 def get_submission(request):
@@ -92,8 +122,6 @@ def get_submission(request):
                 if question["Category"]==1:     #单选题
                     ChoiceAnswer.objects.create()
                     
-
-
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
@@ -394,7 +422,8 @@ def get_filled_qs(request,username):
                     status_Chinese="已删除"
                 data_list.append({'Title':submission.Survey.Title,'PublishDate':submission.Survey.PublishDate,
                                   'SurveyID':submission.Survey.SurveyID,'Category':submission.Survey.Category,
-                                  'Description':submission.Survey.Description,'Status':status_Chinese})
+                                  'Description':submission.Survey.Description,'Status':status_Chinese,
+                                  'SubmissionID':submission.SubmissionID})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -475,9 +504,13 @@ def get_all_released_qs(request):
         for survey in qs_query:
             reward=RewardOffering.objects.filter(Survey=survey).first()
             if reward is not None:
-                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':reward.Zhibi,'HeadCount':reward.AvailableQuota})
+                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,
+                                  'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,
+                                  'Reward':reward.Zhibi,'HeadCount':reward.AvailableQuota})
             else:
-                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,'Reward':None,'HeadCount':None})
+                data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,
+                                  'SurveyID':survey.SurveyID,'categoryId':survey.Category,'Description':survey.Description,
+                                  'Reward':None,'HeadCount':None})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -754,8 +787,8 @@ from django.db.models import Count, Sum, Q
 
 def survey_statistics(request):
     if request.method=='GET':
-        survey_id = request.GET.get('surveyID')
-        survey = Survey.objects.get(SurveyID=survey_id)
+        survey_id = request.GET.get('surveyId')
+        survey = Survey.objects.get(id=survey_id)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
