@@ -689,11 +689,11 @@ def survey_statistics(request):
             'questions_stats': []
         }
         
-        questions = (
-                BlankQuestion.objects.filter(Survey=survey) |
-                ChoiceQuestion.objects.filter(Survey=survey) |
+        questions = list(chain(
+                BlankQuestion.objects.filter(Survey=survey),
+                ChoiceQuestion.objects.filter(Survey=survey),
                 RatingQuestion.objects.filter(Survey=survey)
-            )
+            ))
         
         type_mapping = {
                 'blankquestion': 3,
