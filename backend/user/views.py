@@ -37,7 +37,7 @@ class GetStoreFillView(APIView):
         print(userName) 
         print(surveyID)
         print(submissionID)
-
+        
         user=User.objects.get(username=userName)
         if user is None:
             return HttpResponse(content='User not found', status=404) 
@@ -47,11 +47,14 @@ class GetStoreFillView(APIView):
             return HttpResponse(content='Questionnaire not found', status=404)   
         
         #从问卷广场界面进入：查找该用户是否有该问卷未提交的填写记录
-        if submissionID==-1:
+        if submissionID=="-1":
             submission_query=Submission.objects.filter(Respondent=user,Survey=survey,Status='Unsubmitted')
             if submission_query.exists():
                 submissionID=submission_query.first().SubmissionID  #找到未填写的记录
-            else:       
+            else:      #不存在：创建一条新的填写记录
+                submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted"
+                                                    )
+                print("#")
                 return HttpResponse(content='Submission not existed', status=404) 
         
         #从问卷管理界面进入：
@@ -135,7 +138,7 @@ class GetStoreFillView(APIView):
         print(survey.Description)
         data={'Title':survey.Title,'category':survey.Category,'people':survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
               'description':survey.Description,'questionList':questionList}
-        return data
+        return JsonResponse(data)
         
 
 #问卷填写界面：从前端接收用户的填写记录

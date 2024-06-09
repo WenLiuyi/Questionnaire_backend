@@ -26,7 +26,7 @@ urlpatterns = [
     path('questionnaireDesign/<int:survey_id>/', GetQuestionnaireView.as_view(), name='get_questionnaire'),
 
     #问卷填写界面：
-    path('questionnaireFill/<str:userName>/<int:surveyID>/-1', GetStoreFillView.as_view(), name='get-store-fill-url'),
+    path('questionnaireFill/<str:userName>/<str:surveyID>/<str:submissionID>', GetStoreFillView.as_view(), name='get-store-fill-url'),
     #path('questionnaireFill',views.get_submission,name='post-submission-url'),
     #path('questionnaireFill/<str:userName>/<int:surveyID>/<int:submissionID>', GetStoreFillView.as_view(), name='get-store-fill-url'),
 
