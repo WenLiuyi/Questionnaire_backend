@@ -693,12 +693,18 @@ def survey_statistics(request):
             ChoiceQuestion.objects.filter(Survey=survey) |
             RatingQuestion.objects.filter(Survey=survey)
         )
-
+    
+    type_mapping = {
+            'blankquestion': 3,
+            'choicequestion': 1 if question.MaxSelectable == 1 else 2,
+            'ratingquestion': 4
+        }
+    question_type_num = type_mapping.get(question._meta.model_name, 0)
 
     #题目信息
     for question in questions:
         q_stats = {
-            'type': question._meta.model_name,
+            'type': question_type_num,
             'question': question.text,
             'number': question.number,
             'is_required': question.is_required,
