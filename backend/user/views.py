@@ -1006,7 +1006,7 @@ def survey_statistics(request, surveyID):
                     })
                     print(q_stats['blank_stats'])
                     
-            stats['questions_stats'].append(q_stats)
+            stats['questionList'].append(q_stats)
         return JsonResponse(stats)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
