@@ -782,7 +782,7 @@ def cross_analysis(request,questionID1,questionID2):
                 cnt = 0
                 for submission in Submission.objects.filter(Survey=survey):
                     choice_answers = submission.choiceanswers_answers.all()
-                    if choice_answers.filter(answers=options1).exists() and choice_answers.filter(answers=options2).exists():
+                    if choice_answers.filter(ChoiceOptions=options1).exists() and choice_answers.filter(ChoiceOptions=options2).exists():
                         cnt += 1
                 results.append({
                     'content': f"{options1.Text}-{options2.Text}",
@@ -845,8 +845,8 @@ from django.db.models import Count, Sum, Q
 
 def survey_statistics(request):
     if request.method=='GET':
-        survey_id = request.GET.get('surveyId')
-        survey = Survey.objects.get(id=survey_id)
+        survey_id = request.GET.get('surveyID')
+        survey = Survey.objects.get(SurveyID=survey_id)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
