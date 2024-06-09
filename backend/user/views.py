@@ -918,7 +918,7 @@ def survey_statistics(request, surveyID):
             'total_submissions': survey_stat.TotalResponses,
             'max_participants': survey.QuotaLimit if survey.QuotaLimit else None,
             'average_score': survey_stat.AverageScore,
-            'questions_stats': []
+            'questionList': []
         }
         
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
@@ -940,6 +940,7 @@ def survey_statistics(request, surveyID):
             
             q_stats = {
                 'type': question.Category,
+                'questionId': question.QuestionID,
                 'question': question.Text,
                 'number': question.QuestionNumber,
                 'is_required': question.IsRequired,
@@ -958,8 +959,8 @@ def survey_statistics(request, surveyID):
                     option_stats = {
                         'number': option.OptionNumber,
                         'is_correct': option.IsCorrect,
-                        'content': option.Text,
-                        'count': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
+                        'optionContent': option.Text,
+                        'optionCnt': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
                     }
                     print("get a option:")
                     print(option_stats)
@@ -984,15 +985,15 @@ def survey_statistics(request, surveyID):
                         correct_submissions.intersection_update(submissions_with_correct_option)
 
                 print("get correct_count:")
-                peint(len(correct_submissions))
+                print(len(correct_submissions))
                 q_stats['correct_count'] = len(correct_submissions)
             
             elif question.Category == 4:
                 ratings = RatingAnswer.objects.filter(Question=question).values('rate').annotate(count=Count('rate'))
                 for rating in ratings:
                     q_stats['rating_stats'].append({
-                        'rate': rating['rate'],
-                        'count': rating['count']
+                        'optionContent': rating['rate'],
+                        'optionCnt': rating['count']
                     })
                     print(q_stats['rating_stats'])
     
@@ -1000,8 +1001,8 @@ def survey_statistics(request, surveyID):
                 answers = BlankAnswer.objects.filter(Question=question).values('content').annotate(count=Count('content'))
                 for answer in answers:
                     q_stats['blank_stats'].append({
-                        'content': answer['content'],
-                        'count': answer['count']
+                        'fill': answer['content'],
+                        'cnt': answer['count']
                     })
                     print(q_stats['blank_stats'])
                     
