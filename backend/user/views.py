@@ -63,6 +63,7 @@ class GetStoreFillView(APIView):
         #从问卷管理界面进入：
         else:
             submission=Submission.objects.get(SubmissionID=submissionID)
+            duration=submission.Interval
             if submission is None:
                 return HttpResponse(content='Submission not found', status=404) 
         
@@ -162,17 +163,12 @@ def get_submission(request):
         try:
             body=json.loads(request.body)
             surveyID=body['surveyID']    #问卷id
-            print("1")
             status=body['status']  #填写记录状态
-            print("1")
             submissionID=body['submissionID']   #填写记录ID
-            print("1")
             username=body['username']     #填写者
-            print("1")
             submissionList=body['question']     #填写记录
-            print("1")
             duration=body['duration']   
-            print("1")
+            #print(submissionID)
 
             survey=Survey.objects.get(SurveyID=surveyID)
             if survey is None:
@@ -183,39 +179,51 @@ def get_submission(request):
                 return HttpResponse(content='User not found',status=404)
 
             #当前不存在该填写记录，创建：
-            if submissionID==-1:
+            if submissionID=="-1":
+
                 submission=Submission.objects.create(Survey=survey,Respondent=user,
                                              SubmissionTime=timezone.now(),Status=status,
                                              Interval=0)
+
             #已存在，删除填写记录的所有内容
             else:
+                #print(submissionID)
+                print("*")
                 submission=Submission.objects.get(SubmissionID=submissionID)
                 if submission is None:
                     return HttpResponse(content='Submission not found',status=404)
-                
+
                 #所有选择题的填写记录
                 ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
-                for choiceAnswer in ChoiceAnswer_query:
-                    choiceAnswer.delete()
+                print(ChoiceAnswer_query)
+                if ChoiceAnswer_query.exists():
+                    for choiceAnswer in ChoiceAnswer_query:
+                        choiceAnswer.delete()
                 
                 #所有填空题的填写记录
                 BlankAnswer_query=BlankAnswer.objects.filter(Submission=submission)
-                for BlankAnswer in BlankAnswer_query:
-                    BlankAnswer.delete()
-                
+                if BlankAnswer_query.exists():
+                    for blankAnswer in BlankAnswer_query:
+                        blankAnswer.delete()
+    
                 #所有评分题的填写记录
-                RatingAnswer_query=BlankAnswer.objects.filter(Submission=submission)
-                for RatingAnswer in BlankAnswer_query:
-                    RatingAnswer.delete()
+                RatingAnswer_query=RatingAnswer.objects.filter(Submission=submission)
+                if RatingAnswer_query.exists():
+                    for ratingAnswer in RatingAnswer_query:
+                        ratingAnswer.delete()
 
             index=1
+            print("#")
+            print(submissionList)
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
+                print(questionID)
+                print(answer)
                 question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
                 if question is None:
                     return HttpResponse(content='Question not found',status=404)
-                
+                print("#")
                 if question["Category"]==1:     #单选题：Answer为选项ID
                     if answer==-1: continue       #返回-1，代表用户没填该单选题
                     option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
