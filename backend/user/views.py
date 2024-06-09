@@ -830,7 +830,7 @@ def cross_analysis(request,questionID1,questionID2):
                 cnt = 0
                 for submission in Submission.objects.filter(Survey=survey):
                     choice_answers = submission.choiceanswers_answers.all()
-                    if choice_answers.filter(answers=options1).exists() and choice_answers.filter(answers=options2).exists():
+                    if choice_answers.filter(ChoiceOptions=options1).exists() and choice_answers.filter(ChoiceOptions=options2).exists():
                         cnt += 1
                 results.append({
                     'content': f"{options1.Text}-{options2.Text}",
@@ -843,8 +843,7 @@ def cross_analysis(request,questionID1,questionID2):
 def download_submissions(request, surveyID):
     if request.method == 'GET':
         survey = Submission.objects.filter(Survey__SurveyID=surveyID).first().Survey
-
-        submissions = Submission.objects.filter(Survey__SurveyID=survey_id, Status__in=['Submitted', 'Graded'])
+        submissions = Submission.objects.filter(Survey__SurveyID=surveyID, Status__in=['Submitted', 'Graded'])
 
         data = {
             '填写者': [],
@@ -891,15 +890,15 @@ def download_submissions(request, surveyID):
 from django.db.models import Count, Sum, Q
 
 def survey_statistics(request, surveyID):
-    if request.method=='GET':
+    if (request.method=='GET'):
         survey = Survey.objects.get(SurveyID=surveyID)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
         stats = {
-            'title': survey.title,
-            'description': survey.description,
-            'category': survey.category,
+            'title': survey.Title,
+            'description': survey.Description,
+            'category': survey.Category,
             'total_submissions': survey_stat.TotalResponses,
             'max_participants': survey.QuotaLimit if survey.QuotaLimit else None,
             'average_score': survey_stat.AverageScore,
@@ -912,23 +911,15 @@ def survey_statistics(request, surveyID):
                 RatingQuestion.objects.filter(Survey=survey)
             ))
         
-        type_mapping = {
-                'blankquestion': 3,
-                'choicequestion': 1 if question.MaxSelectable == 1 else 2,
-                'ratingquestion': 4
-            }
-    
         #题目信息
         for question in questions:
-            question_type_num = type_mapping.get(question._meta.model_name, 0)
-            
             q_stats = {
-                'type': question_type_num,
-                'question': question.text,
-                'number': question.number,
-                'is_required': question.is_required,
-                'filled_count': Answer.objects.filter(question=question).count(),
-                'score': question.score if survey.category == '3' else None,
+                'type': question.Category,
+                'question': question.Text,
+                'number': question.QuestionNumber,
+                'is_required': question.IsRequired,
+                'filled_count': Answer.objects.filter(Question=question).count(),
+                'score': question.Score if survey.Category == '3' else None,
                 'correct_answer': None,
                 'correct_count': 0,
                 'options_stats': [],
@@ -937,22 +928,22 @@ def survey_statistics(request, surveyID):
             }
     
             #答案信息
-            if question._meta.model_name == 'choicequestion':
-                correct_option_numbers = [option.number for option in question.choice_options.filter(is_correct=True)]
+            if question.Category < 3:
+                correct_option_numbers = [option.Number for option in question.choice_options.filter(is_correct=True)]
                 q_stats['correct_answer'] = correct_option_numbers
                 for option in question.choice_options.all():
                     option_stats = {
-                        'number': option.number,
-                        'is_correct': option.is_correct,
+                        'number': option.Number,
+                        'is_correct': option.IsCorrect,
                         'content': option.Text,
-                        'count': ChoiceAnswer.objects.filter(question=question, ChoiceOptions=option).count()
+                        'count': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
                     }
                     q_stats['options_stats'].append(option_stats)
     
                 correct_submissions = set()
                 for correct_number in correct_option_numbers:
                     submissions_with_correct_option = ChoiceAnswer.objects.filter(
-                        question=question,
+                        Question=question,
                         ChoiceOptions__number=correct_number
                     ).values_list('Submission', flat=True)
     
@@ -964,16 +955,16 @@ def survey_statistics(request, surveyID):
     
                 q_stats['correct_count'] = len(correct_submissions)
             
-            elif question.type == 'ratingquestion':
-                ratings = RatingAnswer.objects.filter(question=question).values('rate').annotate(count=Count('rate'))
+            elif question.Category == 3:
+                ratings = RatingAnswer.objects.filter(Question=question).values('rate').annotate(count=Count('rate'))
                 for rating in ratings:
                     q_stats['rating_stats'].append({
                         'rate': rating['rate'],
                         'count': rating['count']
                     })
     
-            elif question.type == 'blankquestion':  
-                answers = BlankAnswer.objects.filter(question=question).values('content').annotate(count=Count('content'))
+            elif question.Category == 4:  
+                answers = BlankAnswer.objects.filter(Question=question).values('content').annotate(count=Count('content'))
                 for answer in answers:
                     q_stats['blank_stats'].append({
                         'content': answer['content'],
