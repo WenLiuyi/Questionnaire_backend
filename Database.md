@@ -47,6 +47,7 @@
     - `QuestionNumber`: 题号。
     - ` Score`: 整型，针对考试问卷设置分数。
     - `CorrectAnswer` : 正确答案。
+    - `Category`: 填空题为3。
   - **索引**: 在`QuestionID`上建立唯一索引，`SurveyID`和`QuestionNumber`上建立组合索引以优化问卷内部问题排序查询。
   - **约束**: 确保`SurveyID`有效且存在对应问卷记录，` Score`非负。
 
@@ -75,6 +76,8 @@
       - `HasOtherOption`: 是否包含“其他”选项供填写。
       - `MaxSelectableOptions`: 最大可选选项数，非负整型，默认为1（单选），当大于1时为多选。
       - ` Score`: 整型，针对考试问卷设置分数，只有选项全部正确得分。
+      - `OptionCnt` : 选项数量，整型。
+      - `Category`: 单选为1；多选为2.
     - **索引**: 同填空题表。
     - **约束**: 确保`SurveyID`有效且存在对应问卷记录，`MaxSelectableOptions`非负，` Score`非负。
 
@@ -86,6 +89,7 @@
       - `QuestionID`: 问题ID，外键关联至选择题表。
       - `OptionText`: 选项文本，长度限制200字符。
       - `IsCorrect`: 对于考试问卷，标记此选项是否正确，布尔类型。
+      - `OptionNumber` : 在题目中的选项顺序，整型。
     - **索引**: 在`OptionID`和`QuestionID`上建立索引。
 
   ##### 4.3. 选择题答案（ChoiceAnswers）
@@ -113,6 +117,7 @@
     - `MaxRating`: 最高评分，非负整型，默认为5，应大于`MinRating`。
     - `MinText`：对最小分数的文字描述，字符串。
     - `MaxText`：对最大分数的文字描述，字符串。
+    - `Category`: 评分题为4。
   - **索引**: 在`QuestionID`上建立唯一索引，`SurveyID`和`QuestionNumber`上建立组合索引。
   - **约束**: 确保`SurveyID`有效且存在对应问卷记录，`MaxRating`大于`MinRating`，两者均为非负。
 
