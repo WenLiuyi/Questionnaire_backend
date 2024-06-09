@@ -866,9 +866,7 @@ def cross_analysis(request, QuestionID1, QuestionID2):
         for options1 in question1.choice_options.all():
             for options2 in question2.choice_options.all():
                 cnt = 0
-                print("+++++++")
                 for submission in Submission.objects.filter(Survey=survey):
-                    print("-----")
                     if ChoiceAnswer.objects.filter(Submission=submission, ChoiceOptions=options1).exists() and ChoiceAnswer.objects.filter(Submission=submission, ChoiceOptions=options2).exists():
                         cnt += 1
                 results['list'].append({
@@ -913,9 +911,11 @@ def download_submissions(request, surveyID):
                 question = RatingQuestion.objects.get(QuestionID=q["QuestionID"])
             data[question.Text] = []
 
+        print(data)
+
         for submission in submissions:
             data['填写者'].append(submission.Respondent.username)
-            data['提交时间'].append(submission.SubmissionTime)
+            data['提交时间'].append(submission.SubmissionTime.date)
 
             if survey.Category == '3':
                 data['分数'].append(submission.Score)
@@ -924,24 +924,23 @@ def download_submissions(request, surveyID):
                                          ChoiceAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
                                          RatingAnswer.objects.filter(Submission=submission).values('AnswerID').all())
                                                     
-            # 将迭代器转换为列表  
             answers = list(all_answer)
 
             for a in answers:
-                if ChoiceAnswer.objects.get(AnswerID=q["AnswerID"]):
-                    answer = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
-                elif BlankAnswer.objects.get(AnswerID=q["AnswerID"]):
-                    answer = BlankQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
-                elif RatingAnswer.objects.get(AnswerID=q["AnswerID"]):
-                    answer = RatingQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
-
-                if isinstance(answer, BlankAnswer):
-                    data[answer.Question.Text].append(answer.Content)
-                elif isinstance(answer, ChoiceAnswer):
-                    choices = [chr(ord('A') + choice - 1) for choice in answer.selected_choices]
+                if ChoiceAnswer.objects.filter(AnswerID=a["AnswerID"]).exists():
+                    answer = ChoiceAnswer.objects.get(AnswerID=a["AnswerID"])
+                    choices = [chr(ord('A') + answer.ChoiceOptions.OptionNumber - 1)]
                     data[answer.Question.Text].append(', '.join(choices))
-                elif isinstance(answer, RatingAnswer):
+                    
+                elif BlankAnswer.objects.filter(AnswerID=a["AnswerID"]).exists():
+                    answer = BlankAnswer.objects.get(AnswerID=a["AnswerID"])
+                    data[answer.Question.Text].append(answer.Content)
+                    
+                elif RatingAnswer.objects.filter(AnswerID=a["AnswerID"]).exists():
+                    answer = RatingAnswer.objects.get(AnswerID=a["AnswerID"])
                     data[answer.Question.Text].append(answer.Rate)
+
+        print(data)
 
         df = pd.DataFrame(data)
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
