@@ -950,14 +950,13 @@ def survey_statistics(request, surveyID):
                 'rating_stats': [],
                 'blank_stats': []
             }
-            
             print(q_stats)
     
             #答案信息
             if question.Category < 3:
                 for option in question.choice_options.all():
                     option_stats = {
-                        'number': option.Number,
+                        'number': option.OptionNumber,
                         'is_correct': option.IsCorrect,
                         'content': option.Text,
                         'count': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
@@ -995,7 +994,7 @@ def survey_statistics(request, surveyID):
                         'rate': rating['rate'],
                         'count': rating['count']
                     })
-                    print(q_stats)
+                    print(q_stats['rating_stats'])
     
             elif question.Category == 3:  
                 answers = BlankAnswer.objects.filter(Question=question).values('content').annotate(count=Count('content'))
@@ -1004,7 +1003,7 @@ def survey_statistics(request, surveyID):
                         'content': answer['content'],
                         'count': answer['count']
                     })
-                    print(q_stats)
+                    print(q_stats['blank_stats'])
                     
             stats['questions_stats'].append(q_stats)
         return JsonResponse(stats)
