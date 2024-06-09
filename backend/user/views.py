@@ -29,11 +29,6 @@ serveAddress="http:127.0.0.1:8080"
 
 #问卷填写界面：向前端传输问卷当前暂存的填写记录
 class GetStoreFillView(APIView):
-    '''def get(self, request, survey_id, *args, **kwargs):  
-        design = request.GET.get('design', 'false')  # 默认为'false'  
-        design = design.lower() == 'true'  # 将字符串转换为布尔值  
-        print(survey_id)'''
-
     def get(self, request, *args, **kwargs):  
         # 从查询参数中获取userName和surveyID   
         userName = kwargs.get('userName')  
@@ -71,6 +66,7 @@ class GetStoreFillView(APIView):
         people=survey.QuotaLimit
 
         '''1.以下部分与问卷编辑界面的get函数类似，拿到题干'''
+        '''2.拿到当前submissionID对应填写记录'''
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
                                                     RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID').all())
@@ -84,10 +80,28 @@ class GetStoreFillView(APIView):
         #print(all_questions)
         for question in all_questions_list:
             if question["Category"]==1 or question["Category"]==2:    #选择题
-                #该单选题的用户选项
+
+                #该单选题的用户选项:当前问卷当前submission(如果用户未选，则找不到对应的答案记录)
+                if question["Category"]==1:
+                    print("#1")
+                    optionAnswer=ChoiceAnswer.objects.get(Submission=submission,Question=question)  #只有一条记录
+                    #用户未填该单选题
+                    if optionAnswer is None:answer=-1
+                    #用户填了这个单选题，有一条答案记录
+                    else:answer=optionAnswer.ChoiceOptions.OptionID
+                
+                #该多选题的用户选项:当前问卷当前submission
+                else:
+                    print("#2")
+                    optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question)#一或多条记录
+                    #用户未填该多选题
+                    if not optionAnswer_query.exists():answer=[-1]
+                    #用户填了这个多选题，有一条/多条答案记录
+                    answer=[]
+                    for optionAnswer in optionAnswer_query:
+                        answer.append(optionAnswer.ChoiceOptions.OptionID)
 
                 optionList=[]
-                print("#1")
                 #将所有选项顺序排列
                 options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
                 for option in options_query:
@@ -95,28 +109,33 @@ class GetStoreFillView(APIView):
                     print(option.Text)
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
-                                     'optionList':optionList})
+                                     'optionList':optionList,'Answer':answer})
                 
             elif question["Category"]==3:                  #填空题
                 print("#3")
+                #该填空题的用户答案:有且仅有一条记录
+                blankAnswer=BlankAnswer.objects.get(Submission=submission,Question=question)
+                answer=blankAnswer.Content
                 
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
-                                     'isNecessary':question["IsRequired"],'score':question["Score"],'correctAnswer':question["CorrectAnswer"]})
-                print(question["Category"],question["Text"],question["QuestionID"],question["IsRequired"],question["Score"],question["CorrectAnswer"])
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],
+                                     'correctAnswer':question["CorrectAnswer"],'Answer':answer})
 
             elif question["Category"]==4:                  #评分题
                 print("#4")
-                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
-                                     'isNecessary':question["IsRequired"],'score':question["Score"]})
+                #该评分题的用户答案:有且仅有一条记录
+                ratingAnswer=RatingAnswer.objects.get(Submission=submission,Question=question)
+                answer=ratingAnswer.Rate
 
-        '''2.拿到当前submissionID对应填写记录'''
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],'Answer':answer})
 
 
         print(survey.Title)
         print(survey.Description)
         data={'Title':survey.Title,'category':survey.Category,'people':survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
               'description':survey.Description,'questionList':questionList}
-
+        return data
         
 
 #问卷填写界面：从前端接收用户的填写记录
@@ -174,6 +193,7 @@ def get_submission(request):
                     return HttpResponse(content='Question not found',status=404)
                 
                 if question["Category"]==1:     #单选题：Answer为选项ID
+                    if answer==-1: continue       #返回-1，代表用户没填该单选题
                     option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
                     if option is None:
                         return HttpResponse(content="Option not found",status=404)
@@ -183,6 +203,7 @@ def get_submission(request):
                 elif question["Category"]==2:     #多选题：Answer为选项ID的数组
                     #为每个用户选择的选项，创建一条ChoiceAnswer记录
                     for optionID in answer:
+                        if optionID==-1: continue       #返回[-1]，代表用户没填该多选题
                         option=ChoiceOption.objects.get(OptionID=optionID)     #用户选择的选项
                         if option is None:
                             return HttpResponse(content="Option not found",status=404)
@@ -360,11 +381,13 @@ def save_qs_design(request):
                     if survey is None:
                         return HttpResponse(content="hello",status=100)
                     print("#")
-                    print(question["correctAnswer"],1)
-                    CorrectAnswer=question["correctAnwser"]
+                    print("1")
+                    print(question)
+                    print(question["correctAnswer"])
+                    print("2")
                     question=BlankQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
                                                               Score=question["score"],QuestionNumber=index,Category=question["type"],
-                                                              CorrectAnswer=question["correctAnwser"])
+                                                              CorrectAnswer=question["correctAnswer"])
                     print("#")
                     question.save()
                 
