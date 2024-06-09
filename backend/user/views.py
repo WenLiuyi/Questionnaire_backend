@@ -51,9 +51,12 @@ class GetStoreFillView(APIView):
             submission_query=Submission.objects.filter(Respondent=user,Survey=survey,Status='Unsubmitted')
             if submission_query.exists():
                 submissionID=submission_query.first().SubmissionID  #找到未填写的记录
+                duration=submission_query.first().Interval
+            
             else:      #不存在：创建一条新的填写记录
-                submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted"
-                                                    )
+                submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted",
+                                                    Interval=0)
+                duration=0
                 print("#")
                 return HttpResponse(content='Submission not existed', status=404) 
         
@@ -112,7 +115,7 @@ class GetStoreFillView(APIView):
                 #将所有选项顺序排列
                 options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
                 for option in options_query:
-                    optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionID':option.OptionID})
+                    optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionId':option.OptionID})
                     print(option.Text)
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
@@ -149,7 +152,7 @@ class GetStoreFillView(APIView):
         print(survey.Title)
         print(survey.Description)
         data={'Title':survey.Title,'category':survey.Category,'people':survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
-              'description':survey.Description,'questionList':questionList}
+              'description':survey.Description,'questionList':questionList,'duration':duration}
         return JsonResponse(data)
         
 
@@ -159,11 +162,17 @@ def get_submission(request):
         try:
             body=json.loads(request.body)
             surveyID=body['surveyID']    #问卷id
+            print("1")
             status=body['status']  #填写记录状态
+            print("1")
             submissionID=body['submissionID']   #填写记录ID
-            username=body['usename']     #填写者
+            print("1")
+            username=body['username']     #填写者
+            print("1")
             submissionList=body['question']     #填写记录
+            print("1")
             duration=body['duration']   
+            print("1")
 
             survey=Survey.objects.get(SurveyID=surveyID)
             if survey is None:
@@ -177,7 +186,7 @@ def get_submission(request):
             if submissionID==-1:
                 submission=Submission.objects.create(Survey=survey,Respondent=user,
                                              SubmissionTime=timezone.now(),Status=status,
-                                             Duration=duration)
+                                             Interval=0)
             #已存在，删除填写记录的所有内容
             else:
                 submission=Submission.objects.get(SubmissionID=submissionID)
@@ -883,6 +892,8 @@ def download_submissions(request, surveyID):
 
         if survey.Category == '3':
             data['分数'] = []
+            
+        print(data)
 
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
@@ -909,7 +920,21 @@ def download_submissions(request, surveyID):
             if survey.Category == '3':
                 data['分数'].append(submission.Score)
 
-            for answer in submission.answers.all():
+            all_answer = itertools.chain(BlankAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
+                                         ChoiceAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
+                                         RatingAnswer.objects.filter(Submission=submission).values('AnswerID').all())
+                                                    
+            # 将迭代器转换为列表  
+            answers = list(all_answer)
+
+            for a in answers:
+                if ChoiceAnswer.objects.get(AnswerID=q["AnswerID"]):
+                    answer = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
+                elif BlankAnswer.objects.get(AnswerID=q["AnswerID"]):
+                    answer = BlankQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
+                elif RatingAnswer.objects.get(AnswerID=q["AnswerID"]):
+                    answer = RatingQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
+
                 if isinstance(answer, BlankAnswer):
                     data[answer.Question.Text].append(answer.Content)
                 elif isinstance(answer, ChoiceAnswer):
