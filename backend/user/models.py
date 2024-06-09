@@ -118,7 +118,8 @@ class Submission(models.Model):
     SubmissionTime = models.DateTimeField(auto_now_add=True)
     Status = models.CharField(max_length=20, choices=[('Unsubmitted', 'Unsubmitted'), ('Submitted', 'Submitted'), ('Graded', 'Graded'),('Deleted','Deleted')])
     Score = models.IntegerField(null=True, blank=True)
-    Duration = models.IntegerField(null=True, blank=True)
+    #Duration = models.IntegerField(null=True, blank=True)
+    Interval=models.IntegerField(null=True, blank=True)
 
 class SurveyStatistic(models.Model):
     StatisticID = models.AutoField(primary_key=True)

@@ -51,11 +51,11 @@ class GetStoreFillView(APIView):
             submission_query=Submission.objects.filter(Respondent=user,Survey=survey,Status='Unsubmitted')
             if submission_query.exists():
                 submissionID=submission_query.first().SubmissionID  #找到未填写的记录
-                duration=submission_query.first().Duration
+                duration=submission_query.first().Interval
             
             else:      #不存在：创建一条新的填写记录
                 submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted",
-                                                    Duration=0)
+                                                    Interval=0)
                 duration=0
                 print("#")
                 return HttpResponse(content='Submission not existed', status=404) 
@@ -186,7 +186,7 @@ def get_submission(request):
             if submissionID==-1:
                 submission=Submission.objects.create(Survey=survey,Respondent=user,
                                              SubmissionTime=timezone.now(),Status=status,
-                                             Duration=duration)
+                                             Interval=0)
             #已存在，删除填写记录的所有内容
             else:
                 submission=Submission.objects.get(SubmissionID=submissionID)
