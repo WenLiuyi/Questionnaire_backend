@@ -913,8 +913,6 @@ def survey_statistics(request, surveyID):
             'average_score': survey_stat.AverageScore,
             'questions_stats': []
         }
-
-        print(stats)
         
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
@@ -924,10 +922,17 @@ def survey_statistics(request, surveyID):
         questions = list(all_questionList_iterator)
         questions.sort(key=lambda x: x['QuestionNumber']) 
         
-        print(questions)
-        
         #题目信息
-        for question in questions:
+        for q in questions:
+            if q["Categpry"] < 3
+                question = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"])
+            elif q["Categpry"] == 3
+                question = BlankQuestion.objects.get(QuestionID=q["QuestionID"])
+            elif q["Categpry"] == 4
+                question = RatingQuestion.objects.get(QuestionID=q["QuestionID"])
+
+            printf("get a quesion, id = %d\n",question.QuestionID)
+            
             q_stats = {
                 'type': question.Category,
                 'question': question.Text,
@@ -973,7 +978,7 @@ def survey_statistics(request, surveyID):
                 q_stats['correct_count'] = len(correct_submissions)
                 print(q_stats)
             
-            elif question.Category == 3:
+            elif question.Category == 4:
                 ratings = RatingAnswer.objects.filter(Question=question).values('rate').annotate(count=Count('rate'))
                 for rating in ratings:
                     q_stats['rating_stats'].append({
@@ -982,7 +987,7 @@ def survey_statistics(request, surveyID):
                     })
                     print(q_stats)
     
-            elif question.Category == 4:  
+            elif question.Category == 3:  
                 answers = BlankAnswer.objects.filter(Question=question).values('content').annotate(count=Count('content'))
                 for answer in answers:
                     q_stats['blank_stats'].append({
