@@ -712,7 +712,7 @@ def survey_statistics(request):
         }
 
     #答案信息
-        if question.type == 'ChoiceQuestion': 
+        if question.type == 'choicequestion': 
             for option in question.choice_options.all():
                 option_stats = {
                     'number': option.number,
@@ -725,7 +725,7 @@ def survey_statistics(request):
                     q_stats['correct_answer'] = chr(ord('A') + option.number - 1)
                     q_stats['correct_count'] += option_stats['selected_count']
 
-        elif question.type == 'RatingQuestion':
+        elif question.type == 'ratingquestion':
             ratings = RatingAnswer.objects.filter(question=question).values('rate').annotate(count=Count('rate'))
             for rating in ratings:
                 q_stats['rating_stats'].append({
@@ -733,7 +733,7 @@ def survey_statistics(request):
                     'count': rating['count']
                 })
 
-        elif question.type == 'BlankQuestion':  
+        elif question.type == 'blankquestion':  
             answers = BlankAnswer.objects.filter(question=question).values('content').annotate(count=Count('content'))
             for answer in answers:
                 q_stats['blank_stats'].append[{
