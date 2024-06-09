@@ -64,8 +64,58 @@ class GetStoreFillView(APIView):
         if submission is None:
             return HttpResponse(content='Submission not found', status=404) 
         
+        Title=survey.Title
+        Description=survey.Description
+        category=survey.Category
+        TimeLimit=survey.TimeLimit
+        people=survey.QuotaLimit
 
-         
+        '''1.以下部分与问卷编辑界面的get函数类似，拿到题干'''
+        all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
+                                                    ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID').all())
+                                                    
+        # 将迭代器转换为列表 (按QuestionNumber递增排序)
+        all_questions_list = list(all_questionList_iterator)
+        all_questions_list.sort(key=lambda x: x['QuestionNumber']) 
+
+        questionList=[]
+
+        #print(all_questions)
+        for question in all_questions_list:
+            if question["Category"]==1 or question["Category"]==2:    #选择题
+                optionList=[]
+                print("#1")
+                #将所有选项顺序排列
+                options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
+                for option in options_query:
+                    optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionID':option.OptionID})
+                    print(option.Text)
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
+                                     'optionList':optionList})
+                
+            elif question["Category"]==3:                  #填空题
+                print("#3")
+                
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"],'correctAnswer':question["CorrectAnswer"]})
+                print(question["Category"],question["Text"],question["QuestionID"],question["IsRequired"],question["Score"],question["CorrectAnswer"])
+
+            elif question["Category"]==4:                  #评分题
+                print("#4")
+                questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                     'isNecessary':question["IsRequired"],'score':question["Score"]})
+
+        '''2.拿到当前submissionID对应填写记录'''
+
+
+        print(survey.Title)
+        print(survey.Description)
+        data={'Title':survey.Title,'category':survey.Category,'people':survey.QuotaLimit,'TimeLimit':survey.TimeLimit,
+              'description':survey.Description,'questionList':questionList}
+
+        
 
 #问卷填写界面：从前端接收用户的填写记录
 def get_submission(request):
