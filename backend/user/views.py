@@ -327,6 +327,13 @@ def save_qs_design(request):
                 survey.Is_released=Is_released
                 if survey is None:
                     return HttpResponse(content='Questionnaire not found', status=400) 
+                
+                survey.Title=title
+                survey.Description=description
+                survey.Is_released=Is_released
+                survey.Category=catecory
+                survey.TimeLimit=timelimit
+                survey.IsOrder=isOrder
                 survey.QuotaLimit=people    #该问卷的报名人数
 
                 #该问卷的所有选择题
