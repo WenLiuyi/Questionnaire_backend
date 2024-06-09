@@ -327,6 +327,13 @@ def save_qs_design(request):
                 survey.Is_released=Is_released
                 if survey is None:
                     return HttpResponse(content='Questionnaire not found', status=400) 
+                
+                survey.Title=title
+                survey.Description=description
+                survey.Is_released=Is_released
+                survey.Category=catecory
+                survey.TimeLimit=timelimit
+                survey.IsOrder=isOrder
                 survey.QuotaLimit=people    #该问卷的报名人数
 
                 #该问卷的所有选择题
@@ -853,11 +860,13 @@ def download_submissions(request, surveyID):
         if survey.Category == '3':
             data['分数'] = []
 
-        questions = list(chain(
-                BlankQuestion.objects.filter(Survey=survey),
-                ChoiceQuestion.objects.filter(Survey=survey),
-                RatingQuestion.objects.filter(Survey=survey)
-            ))
+        all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
+                                                    ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())
+                                                    
+        # 将迭代器转换为列表  
+        questions = list(all_questionList_iterator)
+        questions.sort(key=lambda x: x['QuestionNumber']) 
         
 
         for question in questions:
@@ -907,11 +916,15 @@ def survey_statistics(request, surveyID):
 
         print(stats)
         
-        questions = list(chain(
-                BlankQuestion.objects.filter(Survey=survey),
-                ChoiceQuestion.objects.filter(Survey=survey),
-                RatingQuestion.objects.filter(Survey=survey)
-            ))
+        all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
+                                                    ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())
+                                                    
+        # 将迭代器转换为列表  
+        questions = list(all_questionList_iterator)
+        questions.sort(key=lambda x: x['QuestionNumber']) 
+        
+        print(questions)
         
         print(questions)
         
@@ -930,6 +943,8 @@ def survey_statistics(request, surveyID):
                 'rating_stats': [],
                 'blank_stats': []
             }
+            
+            print(q_stats)
     
             #答案信息
             if question.Category < 3:
@@ -943,7 +958,7 @@ def survey_statistics(request, surveyID):
                         'count': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
                     }
                     q_stats['options_stats'].append(option_stats)
-    
+                    
                 correct_submissions = set()
                 for correct_number in correct_option_numbers:
                     submissions_with_correct_option = ChoiceAnswer.objects.filter(
@@ -958,6 +973,7 @@ def survey_statistics(request, surveyID):
                         correct_submissions.intersection_update(submissions_with_correct_option)
     
                 q_stats['correct_count'] = len(correct_submissions)
+                print(q_stats)
             
             elif question.Category == 3:
                 ratings = RatingAnswer.objects.filter(Question=question).values('rate').annotate(count=Count('rate'))
@@ -966,6 +982,7 @@ def survey_statistics(request, surveyID):
                         'rate': rating['rate'],
                         'count': rating['count']
                     })
+                    print(q_stats)
     
             elif question.Category == 4:  
                 answers = BlankAnswer.objects.filter(Question=question).values('content').annotate(count=Count('content'))
@@ -974,6 +991,7 @@ def survey_statistics(request, surveyID):
                         'content': answer['content'],
                         'count': answer['count']
                     })
+                    print(q_stats)
                     
             stats['questions_stats'].append(q_stats)
         return JsonResponse(stats)
