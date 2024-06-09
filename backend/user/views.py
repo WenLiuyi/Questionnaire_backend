@@ -902,7 +902,7 @@ from django.db.models import Count, Sum, Q
 
 def survey_statistics(request, surveyID):
     if request.method=='GET':
-        survey = Survey.objects.get(id=surveyID)
+        survey = Survey.objects.get(SurveyID=surveyID)
         survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
         #问卷基础信息
@@ -946,7 +946,7 @@ def survey_statistics(request, surveyID):
                 'blank_stats': []
             }
     
-        #答案信息
+            #答案信息
             if question._meta.model_name == 'choicequestion':
                 correct_option_numbers = [option.number for option in question.choice_options.filter(is_correct=True)]
                 q_stats['correct_answer'] = correct_option_numbers
