@@ -673,79 +673,82 @@ def download_submissions(request):
 from django.db.models import Count, Sum, Q
 
 def survey_statistics(request):
-    survey_id = request.GET.get('surveyId')
-    survey = Survey.objects.get(id=survey_id)
-    survey_stat = SurveyStatistic.objects.get(Survey=survey)
-
-    #问卷基础信息
-    stats = {
-        'title': survey.title,
-        'description': survey.description,
-        'category': survey.category,
-        'total_submissions': survey_stat.TotalResponses,
-        'max_participants': survey.QuotaLimit if survey.QuotaLimit else None,
-        'average_score': survey_stat.AverageScore,
-        'questions_stats': []
-    }
+    if request.method=='GET':
+        survey_id = request.GET.get('surveyId')
+        survey = Survey.objects.get(id=survey_id)
+        survey_stat = SurveyStatistic.objects.get(Survey=survey)
     
-    questions = (
-            BlankQuestion.objects.filter(Survey=survey) |
-            ChoiceQuestion.objects.filter(Survey=survey) |
-            RatingQuestion.objects.filter(Survey=survey)
-        )
+        #问卷基础信息
+        stats = {
+            'title': survey.title,
+            'description': survey.description,
+            'category': survey.category,
+            'total_submissions': survey_stat.TotalResponses,
+            'max_participants': survey.QuotaLimit if survey.QuotaLimit else None,
+            'average_score': survey_stat.AverageScore,
+            'questions_stats': []
+        }
+        
+        questions = (
+                BlankQuestion.objects.filter(Survey=survey) |
+                ChoiceQuestion.objects.filter(Survey=survey) |
+                RatingQuestion.objects.filter(Survey=survey)
+            )
+        
+        type_mapping = {
+                'blankquestion': 3,
+                'choicequestion': 1 if question.MaxSelectable == 1 else 2,
+                'ratingquestion': 4
+            }
+        question_type_num = type_mapping.get(question._meta.model_name, 0)
     
-    type_mapping = {
-            'blankquestion': 3,
-            'choicequestion': 1 if question.MaxSelectable == 1 else 2,
-            'ratingquestion': 4
-        }
-    question_type_num = type_mapping.get(question._meta.model_name, 0)
+        #题目信息
+        for question in questions:
+            q_stats = {
+                'type': question_type_num,
+                'question': question.text,
+                'number': question.number,
+                'is_required': question.is_required,
+                'filled_count': Answer.objects.filter(question=question).count(),
+                'score': question.score if survey.category == '3' else None,
+                'correct_answer': None,
+                'correct_count': 0,
+                'options_stats': [],
+                'rating_stats': [],
+                'blank_stats': []
+            }
+    
+        #答案信息
+            if question.type == 'choicequestion': 
+                for option in question.choice_options.all():
+                    option_stats = {
+                        'number': option.number,
+                        'is_correct': option.is_correct,
+                        'content': option.Text,
+                        'count': ChoiceAnswer.objects.filter(question=question, selected_options__contains=[option.number]).count()
+                    }
+                    q_stats['options_stats'].append(option_stats)
+                    if option.is_correct and survey.category == '3':
+                        q_stats['correct_answer'] = chr(ord('A') + option.number - 1)
+                        q_stats['correct_count'] += option_stats['selected_count']
+    
+            elif question.type == 'ratingquestion':
+                ratings = RatingAnswer.objects.filter(question=question).values('rate').annotate(count=Count('rate'))
+                for rating in ratings:
+                    q_stats['rating_stats'].append({
+                        'rate': rating['rate'],
+                        'count': rating['count']
+                    })
+    
+            elif question.type == 'blankquestion':  
+                answers = BlankAnswer.objects.filter(question=question).values('content').annotate(count=Count('content'))
+                for answer in answers:
+                    q_stats['blank_stats'].append[{
+                        'content': answer['content'],
+                        'count': answer['count']
+                    }]
+                    
+            stats['questions_stats'].append(q_stats)
+        return JsonResponse(stats)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-    #题目信息
-    for question in questions:
-        q_stats = {
-            'type': question_type_num,
-            'question': question.text,
-            'number': question.number,
-            'is_required': question.is_required,
-            'filled_count': Answer.objects.filter(question=question).count(),
-            'score': question.score if survey.category == '3' else None,
-            'correct_answer': None,
-            'correct_count': 0,
-            'options_stats': [],
-            'rating_stats': [],
-            'blank_stats': []
-        }
-
-    #答案信息
-        if question.type == 'choicequestion': 
-            for option in question.choice_options.all():
-                option_stats = {
-                    'number': option.number,
-                    'is_correct': option.is_correct,
-                    'content': option.Text,
-                    'count': ChoiceAnswer.objects.filter(question=question, selected_options__contains=[option.number]).count()
-                }
-                q_stats['options_stats'].append(option_stats)
-                if option.is_correct and survey.category == '3':
-                    q_stats['correct_answer'] = chr(ord('A') + option.number - 1)
-                    q_stats['correct_count'] += option_stats['selected_count']
-
-        elif question.type == 'ratingquestion':
-            ratings = RatingAnswer.objects.filter(question=question).values('rate').annotate(count=Count('rate'))
-            for rating in ratings:
-                q_stats['rating_stats'].append({
-                    'rate': rating['rate'],
-                    'count': rating['count']
-                })
-
-        elif question.type == 'blankquestion':  
-            answers = BlankAnswer.objects.filter(question=question).values('content').annotate(count=Count('content'))
-            for answer in answers:
-                q_stats['blank_stats'].append[{
-                    'content': answer['content'],
-                    'count': answer['count']
-                }]
-                
-        stats['questions_stats'].append(q_stats)
-    return JsonResponse(stats)
