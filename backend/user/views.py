@@ -861,29 +861,29 @@ def activate_user(request,token):
 import pandas as pd
 
 #交叉分析
-def cross_analysis(request, questionID1, questionID2):
+def cross_analysis(request, QuestionID1, QuestionID2):
     if request.method == 'GET':
-        question1 = ChoiceQuestion.object.get(QuestionID=questionID1)
-        question2 = ChoiceQuestion.object.get(QuestionID=questionID2)
+        
+        question1 = ChoiceQuestion.objects.get(QuestionID=QuestionID1)
+        question2 = ChoiceQuestion.objects.get(QuestionID=QuestionID2)
 
-        if questionID1 is None or questionID2 is None:
+        if QuestionID1 is None or QuestionID2 is None:
             return JsonResponse({'error': 'Missing QuestionID(s)'}, status=400)
-
         survey = question1.Survey
-
-        results = []
+        
+        results = {'list': []}
         for options1 in question1.choice_options.all():
             for options2 in question2.choice_options.all():
                 cnt = 0
                 for submission in Submission.objects.filter(Survey=survey):
-                    choice_answers = submission.choiceanswers_answers.all()
-                    if choice_answers.filter(ChoiceOptions=options1).exists() and choice_answers.filter(ChoiceOptions=options2).exists():
+                    if ChoiceAnswer.objects.filter(Submission=submission, ChoiceOptions=options1).exists() and ChoiceAnswer.objects.filter(Submission=submission, ChoiceOptions=options2).exists():
                         cnt += 1
-                results.append({
+                results['list'].append({
                     'content': f"{options1.Text}-{options2.Text}",
                     'cnt': cnt
                 })
-
+                
+        
         return JsonResponse(results)
 
 #下载表格
@@ -918,12 +918,13 @@ def download_submissions(request, surveyID):
                 question = BlankQuestion.objects.get(QuestionID=q["QuestionID"])
             elif q["Category"] == 4:
                 question = RatingQuestion.objects.get(QuestionID=q["QuestionID"])
-            printf("get a quesion, id = %d\n",question.QuestionID)
             data[question.Text] = []
+
+        print(data)
 
         for submission in submissions:
             data['填写者'].append(submission.Respondent.username)
-            data['提交时间'].append(submission.SubmissionTime)
+            data['提交时间'].append(submission.SubmissionTime.date)
 
             if survey.Category == '3':
                 data['分数'].append(submission.Score)
@@ -932,24 +933,23 @@ def download_submissions(request, surveyID):
                                          ChoiceAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
                                          RatingAnswer.objects.filter(Submission=submission).values('AnswerID').all())
                                                     
-            # 将迭代器转换为列表  
             answers = list(all_answer)
 
             for a in answers:
-                if ChoiceAnswer.objects.get(AnswerID=q["AnswerID"]):
-                    answer = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
-                elif BlankAnswer.objects.get(AnswerID=q["AnswerID"]):
-                    answer = BlankQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
-                elif RatingAnswer.objects.get(AnswerID=q["AnswerID"]):
-                    answer = RatingQuestion.objects.get(QuestionID=q["QuestionID"]).exists()
-
-                if isinstance(answer, BlankAnswer):
-                    data[answer.Question.Text].append(answer.Content)
-                elif isinstance(answer, ChoiceAnswer):
-                    choices = [chr(ord('A') + choice - 1) for choice in answer.selected_choices]
+                if ChoiceAnswer.objects.filter(AnswerID=a["AnswerID"]).exists():
+                    answer = ChoiceAnswer.objects.get(AnswerID=a["AnswerID"])
+                    choices = [chr(ord('A') + answer.ChoiceOptions.OptionNumber - 1)]
                     data[answer.Question.Text].append(', '.join(choices))
-                elif isinstance(answer, RatingAnswer):
+                    
+                elif BlankAnswer.objects.filter(AnswerID=a["AnswerID"]).exists():
+                    answer = BlankAnswer.objects.get(AnswerID=a["AnswerID"])
+                    data[answer.Question.Text].append(answer.Content)
+                    
+                elif RatingAnswer.objects.filter(AnswerID=a["AnswerID"]).exists():
+                    answer = RatingAnswer.objects.get(AnswerID=a["AnswerID"])
                     data[answer.Question.Text].append(answer.Rate)
+
+        print(data)
 
         df = pd.DataFrame(data)
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -979,12 +979,10 @@ def survey_statistics(request, surveyID):
         
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
-                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())
-                                                    
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())                              
         # 将迭代器转换为列表  
         questions = list(all_questionList_iterator)
         questions.sort(key=lambda x: x['QuestionNumber']) 
-        
         #题目信息
         for q in questions:
             if q["Category"] < 3:
@@ -1007,7 +1005,6 @@ def survey_statistics(request, surveyID):
                 'rating_stats': [],
                 'blank_stats': []
             }
-            print(q_stats)
     
             #答案信息
             if question.Category < 3:
@@ -1018,14 +1015,10 @@ def survey_statistics(request, surveyID):
                         'optionContent': option.Text,
                         'optionCnt': ChoiceAnswer.objects.filter(Question=question, ChoiceOptions=option).count()
                     }
-                    print("get a option:")
-                    print(option_stats)
                     q_stats['options_stats'].append(option_stats)
-
+                
                 correct_option_numbers = [option.Number for option in question.choice_options.filter(IsCorrect=True)]
                 q_stats['correct_answer'] = correct_option_numbers
-                print(correct_option_numbers)
-                print(q_stats['correct_answer'])
                 
                 correct_submissions = set()
                 for correct_number in correct_option_numbers:
