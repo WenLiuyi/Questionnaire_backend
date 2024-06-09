@@ -843,29 +843,31 @@ def activate_user(request,token):
 import pandas as pd
 
 #交叉分析
-def cross_analysis(request,questionID1,questionID2):
+def cross_analysis(request, QuestionID1, QuestionID2):
     if request.method == 'GET':
-        question1 = ChoiceQuestion.object.get(QuestionID=QuestionID1)
-        question2 = ChoiceQuestion.object.get(QuestionID=QuestionID2)
+        
+        question1 = ChoiceQuestion.objects.get(QuestionID=QuestionID1)
+        question2 = ChoiceQuestion.objects.get(QuestionID=QuestionID2)
 
-        if questionID1 is None or questionID2 is None:
+        if QuestionID1 is None or QuestionID2 is None:
             return JsonResponse({'error': 'Missing QuestionID(s)'}, status=400)
-
         survey = question1.Survey
-
-        results = []
+        
+        results = {'list': []}
         for options1 in question1.choice_options.all():
             for options2 in question2.choice_options.all():
                 cnt = 0
+                print("+++++++")
                 for submission in Submission.objects.filter(Survey=survey):
-                    choice_answers = submission.choiceanswers_answers.all()
-                    if choice_answers.filter(ChoiceOptions=options1).exists() and choice_answers.filter(ChoiceOptions=options2).exists():
+                    print("-----")
+                    if ChoiceAnswer.objects.filter(Submission=submission, ChoiceOptions=options1).exists() and ChoiceAnswer.objects.filter(Submission=submission, ChoiceOptions=options2).exists():
                         cnt += 1
-                results.append({
+                results['list'].append({
                     'content': f"{options1.Text}-{options2.Text}",
                     'cnt': cnt
                 })
-
+                
+        
         return JsonResponse(results)
 
 #下载表格
@@ -892,11 +894,11 @@ def download_submissions(request, surveyID):
         
 
         for q in questions:
-            if q["Categpry"] < 3:
+            if q["Category"] < 3:
                 question = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"])
-            elif q["Categpry"] == 3:
+            elif q["Category"] == 3:
                 question = BlankQuestion.objects.get(QuestionID=q["QuestionID"])
-            elif q["Categpry"] == 4:
+            elif q["Category"] == 4:
                 question = RatingQuestion.objects.get(QuestionID=q["QuestionID"])
             data[question.Text] = []
 

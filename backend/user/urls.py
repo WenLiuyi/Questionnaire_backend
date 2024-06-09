@@ -34,6 +34,7 @@ urlpatterns = [
 
 
     #数据分析:
-    path('dataPre/<int:QuestionID1>/<int:QuestionID2>/',views.cross_analysis,name='cross-analysis-url'),
-    path('dataPre/<int:surveyID>',views.survey_statistics,name='survey-statistics-url')
+    path('dataPre/<int:QuestionID1>/<int:QuestionID2>',views.cross_analysis,name='cross-analysis-url'),
+    path('dataPre/<int:surveyID>',views.survey_statistics,name='survey-statistics-url'),
+    path('dataPre/download/<int:surveyID>',views.download_submissions,name='download_submissions-url')
 ]
