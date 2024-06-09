@@ -919,17 +919,18 @@ def survey_statistics(request, surveyID):
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
                                                     RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionNumber','QuestionID').all())
-                                                    
+        print("*****")                                
         # 将迭代器转换为列表  
         questions = list(all_questionList_iterator)
+        print("*****")
         questions.sort(key=lambda x: x['QuestionNumber']) 
-        
+        print("*****")
         print(questions)
-        
-        print(questions)
+        print("*****")
         
         #题目信息
         for question in questions:
+            print("*****")
             q_stats = {
                 'type': question.Category,
                 'question': question.Text,
@@ -945,6 +946,7 @@ def survey_statistics(request, surveyID):
             }
             
             print(q_stats)
+            print("----")
     
             #答案信息
             if question.Category < 3:
