@@ -303,6 +303,73 @@ def get_filled_qs(request,username):
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#问卷广场：检查投票/考试问卷
+def check_qs(request,username,questionnaireId,type):
+    user=User.objects.get(username=username)
+    if user is None:
+        return HttpResponse(content="User not found",status=404)
+    qs=Survey.objects.get(SurveyID=questionnaireId)
+    if qs is None:
+        return HttpResponse(content="Questionnaire not found",status=404)
+    
+    #投票问卷:每个用户只可提交一次
+    if qs.Category==1:
+        submission_query=Submission.objects.filter(Respondent=user,Survey=qs)
+        if submission_query.exists():
+            submission=submission_query.first()
+            if submission.Status=='Unsubmitted':
+                data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
+            elif submission.Status=='Submitted':
+                data={'message':False,"content":"您完成投票，不可重复投票"}
+            else:
+                data={'message':False,"content":"当前问卷已被撤回"}
+        else:
+            data={'message':True,"content":"可以开始/继续填写"}
+        return JsonResponse(data)
+    
+    #考试问卷：每个用户只可提交一次
+    elif qs.Category==3:
+        submission_query=Submission.objects.filter(Respondent=user,Survey=qs)
+        if submission_query.exists():
+            submission=submission_query.first()
+            if submission.Status=='Unsubmitted':
+                data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
+            elif submission.Status=='Submitted':
+                data={'message':False,"content":"您已完成当前考试"}
+            else:
+                data={'message':False,"content":"当前问卷已被撤回"}
+        else:
+            data={'message':True,"content":"可以开始/继续填写"}
+        return JsonResponse(data)
+    
+    #报名问卷：超过人数，不可以再报名
+    elif qs.Category==2:
+        #检查是否超人数
+        submission_query=Submission.objects.filter(Respondent=user,Survey=qs)
+        currentCnt=Submission.objects.filter(Respondent=user,Survey=qs).count()
+        if currentCnt>=qs.QuotaLimit:
+            data={'message':False,"content":"当前报名人数已满"}
+            return JsonResponse(data)
+
+        #检查是否有未提交的填写记录
+        unsubmitted_query=Submission.objects.filter(Respondent=user,Survey=qs,Status="Unsubmitted")
+        if unsubmitted_query.exists():
+            data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
+        
+        data={'message':True,"content":"可以开始/继续填写"}
+        return JsonResponse(data)   
+
+    #普通问卷
+    else: 
+        #检查是否有未提交的填写记录
+        unsubmitted_query=Submission.objects.filter(Respondent=user,Survey=qs,Status="Unsubmitted")
+        if unsubmitted_query.exists():
+            data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
+        else:
+            data={'message':True,"content":"可以开始/继续填写"}
+
+        return JsonResponse(data)   
     
 #问卷广场：所有问卷
 def get_all_released_qs(request):
