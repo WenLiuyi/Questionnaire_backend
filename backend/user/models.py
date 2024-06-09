@@ -60,9 +60,9 @@ class BaseQuestion(models.Model):
     Survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='%(class)s_questions')
     Text = models.TextField(max_length=500)
     IsRequired = models.BooleanField(default=True)
-    QuestionNumber = models.IntegerField(null=False,default=0)
-    Score = models.IntegerField(null=True, blank=True)
-    Category=models.IntegerField(null=False)    #题目类型：单选为1；多选为2；填空题为3；评分题为4
+    QuestionNumber = models.IntegerField(default=0)
+    Score = models.IntegerField(null=True, blank=True,default=0)
+    Category=models.IntegerField()    #题目类型：单选为1；多选为2；填空题为3；评分题为4
 
     class Meta:
         abstract = True
@@ -73,7 +73,7 @@ class BlankQuestion(BaseQuestion):
 class ChoiceQuestion(BaseQuestion):
     HasOtherOption = models.BooleanField(default=False)
     MaxSelectable = models.IntegerField(default=1)
-    OptionCnt=models.IntegerField(null=False,default=0)
+    OptionCnt=models.IntegerField(default=0)
 
 class ChoiceOption(models.Model):
     OptionID = models.AutoField(primary_key=True)
@@ -149,7 +149,7 @@ class UserRewardRecord(models.Model):
     Zhibi = models.IntegerField()
     RedemptionDate = models.DateField()
 
-
+'''
 #Submission状态变化时更新SurveyStatistice和自动打分
 @receiver(pre_save, sender=Submission)
 def update_survey_statistic_on_submission_status_change(sender, instance, **kwargs):
@@ -223,3 +223,4 @@ def handle_survey_release_and_calculate_totalscore(sender, instance, **kwargs):
 def create_survey_statistic(sender, instance, created, **kwargs):
     if created:  # Only create SurveyStatistic when a new Survey is created
         SurveyStatistic.objects.create(Survey=instance)
+'''

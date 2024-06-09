@@ -96,16 +96,15 @@ def save_qs_design(request):
             body=json.loads(request.body)
             surveyID=body['surveyID']    #问卷id
             title=body['title']  #问卷标题
-            catecory=body['catecory']   #问卷类型（普通0、投票1、报名2、考试3）
+            catecory=body['category']   #问卷类型（普通0、投票1、报名2、考试3）
             isOrder=body['isOrder'] #是否顺序展示（考试问卷）
             people=body['people']   #报名人数（报名问卷）
             timelimit=body['timeLimit']
-            username=body['username']   #创建者用户名
+            username=body['userName']   #创建者用户名
             description=body['description'] #问卷描述
             Is_released=body['Is_released'] #保存/发布
 
             questionList=body['questionList']   #问卷题目列表
-
             user=User.objects.get(username=username)
             if user is None:        
                 return HttpResponse(content='User not found', status=400) 
@@ -142,29 +141,45 @@ def save_qs_design(request):
                 for ratingQuestion in ratingQuestion_query:
                     ratingQuestion.delete()
 
+            index=0
             for question in questionList:
-                if question.type==1 or question.type==2:        #单选/多选
-                    question=ChoiceQuestion.objects.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
-                                                               Score=question.score,QuestionNumber=question.QuestionNumber,
-                                                               OptionCnt=question.optionCnt,Category=question.type)
+                print(question["type"])
+                if question["type"]==1 or question["type"]==2:        #单选/多选
+                    print("*")
+                    print(question)
+                    print(question["question"])
+                    print(question["isNecessary"])
+                    print(question["socre"])
+                    print(index,question["optionCnt"])
+                    print("type:")
+                    print(question["type"])
+                    #question["isNecessary"],question["score"],index,question["optionCnt"],question["type"])
+                    question=ChoiceQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
+                                                               Score=question["socre"],QuestionNumber=index,
+                                                               OptionCnt=question["optionCnt"],Category=question["type"])
+                    print("*")
                     question.save()
                     #所有选项:
+                    jdex=0
                     optionList=question.optionList
                     for option in optionList:
-                        option=ChoiceOption.objects.create(Question=question,Text=option.content,
-                                                               OptionNumber=option.optionNumber,IsCorrect=option.isCorrect)
+                        option=ChoiceOption.objects.create(Question=question,Text=option["content"],
+                                                               OptionNumber=jdex,IsCorrect=option["isCorrect"])
                         option.save()
+                        jdex=jdex+1
                 
-                elif question.type==3:                          #填空
-                    question=BlankQuestion.objects.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
-                                                              Score=question.score,QuestionNumber=question.QuestionNumber,
-                                                              CorrectAnswer=question.correctAnswer,Category=question.type)
+                elif question["type"]==3:                          #填空
+                    print("*")
+                    question=BlankQuestion.objects.create(Survey=survey,Text=question["question"],IsRequired=question["isNecessary"],
+                                                              Score=question["score"],QuestionNumber=index,
+                                                              CorrectAnswer=question["correctAnswer"],Category=question["type"])
                     question.save()
                 
                 else:                                           #评分题
                     question=RatingQuestion.objectas.create(Survey=survey,Text=question.question,IsRequired=question.isNecessary,
                                                               Score=question.score,QuestionNumber=question.QuestionNumber,Category=question.type)
                     question.save()
+                index=index+1
             return HttpResponse(content='Questionnaire saved successfully', status=400) 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
@@ -654,3 +669,60 @@ def download_submissions(request):
 
         return response
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+from django.db.models import Count, Sum, Q
+
+def survey_statistics(request):
+    survey_id = request.GET.get('surveyId')
+    survey = Survey.objects.get(id=survey_id)
+    survey_stat = SurveyStatistic.objects.get(Survey=survey)
+
+    #问卷基础信息
+    stats = {
+        'title': survey.title,
+        'description': survey.description,
+        'category': survey.category,
+        'total_submissions': survey_stat.TotalResponses,
+        'max_participants': survey.QuotaLimit if survey.QuotaLimit else None,
+        'average_score': survey_stat.AverageScore,
+        'questions_stats': []
+    }
+    
+    questions = (
+            BlankQuestion.objects.filter(Survey=survey) |
+            ChoiceQuestion.objects.filter(Survey=survey) |
+            RatingQuestion.objects.filter(Survey=survey)
+        )
+
+
+    #题目信息
+    for question in questions:
+        q_stats = {
+            'type': question._meta.model_name,
+            'text': question.text,
+            'number': question.number,
+            'is_required': question.is_required,
+            'filled_count': Answer.objects.filter(question=question).count(),
+            'score': question.score if survey.category == '3' else None,
+            'correct_answer': None,
+            'correct_count': 0,
+            'options_stats': [],
+            'rating_stats': [],
+            'blank_answers': []
+        }
+
+    #答案信息
+        if question.type == '1': 
+            for option in question.choice_options.all():
+                option_stats = {
+                    'number': option.number,
+                    'is_correct': option.is_correct,
+                    'selected_count': ChoiceAnswer.objects.filter(question=question, selected_options__contains=[option.number]).count()
+                }
+                q_stats['options_stats'].append(option_stats)
+                if option.is_correct and survey.category == '3':
+                    q_stats['correct_answer'] = chr(ord('A') + option.number - 1)
+                    q_stats['correct_count'] += option_stats['selected_count']
+
+        elif question.type == '2':
+            ratings = Ratin
