@@ -58,9 +58,10 @@ class GetStoreFillView(APIView):
                 return HttpResponse(content='Submission not existed', status=404) 
         
         #从问卷管理界面进入：
-        submission=Submission.objects.get(SubmissionID=submissionID)
-        if submission is None:
-            return HttpResponse(content='Submission not found', status=404) 
+        else:
+            submission=Submission.objects.get(SubmissionID=submissionID)
+            if submission is None:
+                return HttpResponse(content='Submission not found', status=404) 
         
         Title=survey.Title
         Description=survey.Description
@@ -70,33 +71,36 @@ class GetStoreFillView(APIView):
 
         '''1.以下部分与问卷编辑界面的get函数类似，拿到题干'''
         '''2.拿到当前submissionID对应填写记录'''
+        print("*")
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
-                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID').all())
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID','QuestionNumber').all())
                                                     
         # 将迭代器转换为列表 (按QuestionNumber递增排序)
         all_questions_list = list(all_questionList_iterator)
         all_questions_list.sort(key=lambda x: x['QuestionNumber']) 
 
         questionList=[]
-
+        print("*")
         #print(all_questions)
         for question in all_questions_list:
             if question["Category"]==1 or question["Category"]==2:    #选择题
 
                 #该单选题的用户选项:当前问卷当前submission(如果用户未选，则找不到对应的答案记录)
                 if question["Category"]==1:
-                    print("#1")
-                    optionAnswer=ChoiceAnswer.objects.get(Submission=submission,Question=question)  #只有一条记录
+                    optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])  #只有一条记录
+                    
                     #用户未填该单选题
-                    if optionAnswer is None:answer=-1
+                    if not optionAnswer_query.exists():
+                        answer=-1
                     #用户填了这个单选题，有一条答案记录
-                    else:answer=optionAnswer.ChoiceOptions.OptionID
+                    else:
+                        answer=optionAnswer_query.first().ChoiceOptions.OptionID
                 
                 #该多选题的用户选项:当前问卷当前submission
                 else:
                     print("#2")
-                    optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question)#一或多条记录
+                    optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])#一或多条记录
                     #用户未填该多选题
                     if not optionAnswer_query.exists():answer=[-1]
                     #用户填了这个多选题，有一条/多条答案记录
@@ -117,8 +121,12 @@ class GetStoreFillView(APIView):
             elif question["Category"]==3:                  #填空题
                 print("#3")
                 #该填空题的用户答案:有且仅有一条记录
-                blankAnswer=BlankAnswer.objects.get(Submission=submission,Question=question)
-                answer=blankAnswer.Content
+                blankAnswer_query=BlankAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+                #用户未填该填空题
+                if not blankAnswer_query.exists():
+                    answer=""
+                else:
+                    answer=blankAnswer_query.first().Content
                 
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],
@@ -127,8 +135,12 @@ class GetStoreFillView(APIView):
             elif question["Category"]==4:                  #评分题
                 print("#4")
                 #该评分题的用户答案:有且仅有一条记录
-                ratingAnswer=RatingAnswer.objects.get(Submission=submission,Question=question)
-                answer=ratingAnswer.Rate
+                ratingAnswer_query=RatingAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+                #用户未填该评分题
+                if not ratingAnswer_query.exists():
+                    answer=0
+                else:
+                    answer=ratingAnswer_query.first().Rate
 
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],'Answer':answer})
