@@ -24,3 +24,13 @@ pip install -r requirements.txt
 python manage.py makemigrations user
 python manage.py migrate user
 ```
+
+## 关闭占用当前端口的进程
+找到端口`8000`对应的进程号(PID):
+```
+sudo lsof -i :8000
+```
+kill进程：
+```
+kill [PID]
+```
