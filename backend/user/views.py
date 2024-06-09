@@ -913,8 +913,6 @@ def survey_statistics(request, surveyID):
             'average_score': survey_stat.AverageScore,
             'questions_stats': []
         }
-
-        print(stats)
         
         all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
@@ -925,18 +923,22 @@ def survey_statistics(request, surveyID):
         print("*****")
         questions.sort(key=lambda x: x['QuestionNumber']) 
         print("*****")
-        print(questions)
-        print("*****")
-        
         #题目信息
-        for question in questions:
-            print("*****")
+        for q in questions:
+            if q["Category"] < 3:
+                question = ChoiceQuestion.objects.get(QuestionID=q["QuestionID"])
+            elif q["Category"] == 3:
+                question = BlankQuestion.objects.get(QuestionID=q["QuestionID"])
+            elif q["Category"] == 4:
+                question = RatingQuestion.objects.get(QuestionID=q["QuestionID"])
+            print("get a quesion, id =")
+            print(question.QuestionID)
+            
             q_stats = {
                 'type': question.Category,
                 'question': question.Text,
                 'number': question.QuestionNumber,
                 'is_required': question.IsRequired,
-                'filled_count': Answer.objects.filter(Question=question).count(),
                 'score': question.Score if survey.Category == '3' else None,
                 'correct_answer': None,
                 'correct_count': 0,
@@ -950,6 +952,7 @@ def survey_statistics(request, surveyID):
     
             #答案信息
             if question.Category < 3:
+                print("----")
                 correct_option_numbers = [option.Number for option in question.choice_options.filter(is_correct=True)]
                 q_stats['correct_answer'] = correct_option_numbers
                 for option in question.choice_options.all():
@@ -977,7 +980,7 @@ def survey_statistics(request, surveyID):
                 q_stats['correct_count'] = len(correct_submissions)
                 print(q_stats)
             
-            elif question.Category == 3:
+            elif question.Category == 4:
                 ratings = RatingAnswer.objects.filter(Question=question).values('rate').annotate(count=Count('rate'))
                 for rating in ratings:
                     q_stats['rating_stats'].append({
@@ -986,7 +989,7 @@ def survey_statistics(request, surveyID):
                     })
                     print(q_stats)
     
-            elif question.Category == 4:  
+            elif question.Category == 3:  
                 answers = BlankAnswer.objects.filter(Question=question).values('content').annotate(count=Count('content'))
                 for answer in answers:
                     q_stats['blank_stats'].append({
