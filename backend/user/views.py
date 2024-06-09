@@ -732,7 +732,7 @@ def cross_analysis(request,questionID1,questionID2):
                 cnt = 0
                 for submission in Submission.objects.filter(Survey=survey):
                     choice_answers = submission.choiceanswers_answers.all()
-                    if choice_answers.filter(answers=options1).exists() and choice_answers.filter(answers=options2).exists():
+                    if choice_answers.filter(ChoiceOptions=options1).exists() and choice_answers.filter(ChoiceOptions=options2).exists():
                         cnt += 1
                 results.append({
                     'content': f"{options1.Text}-{options2.Text}",
