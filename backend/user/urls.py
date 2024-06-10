@@ -33,6 +33,7 @@ urlpatterns = [
 
     #问卷展示界面：
     path('normalAnswer/<str:username>/<str:questionnaireId>/<str:submissionId>',views.display_answer_normal,name='display-answer-normal'),
+    path('testAnswer/<str:username>/<str:questionnaireId>/<str:submissionId>',views.display_answer_test,name='display-answer-test'),
 
     #数据分析:
     path('dataPre/<int:QuestionID1>/<int:QuestionID2>',views.cross_analysis,name='cross-analysis-url'),

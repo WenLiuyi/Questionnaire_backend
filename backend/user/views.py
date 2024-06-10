@@ -80,14 +80,16 @@ def display_answer_normal(request,username,questionnaireId,submissionId):
                         answer.append(optionAnswer.ChoiceOptions.OptionID)
 
             optionList=[]
-            #将所有选项顺序排列
-            options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
+            #所有选项
+            options_query=ChoiceOption.objects.filter(Question=question["QuestionID"])
             for option in options_query:
+                print(option.Text)
                 optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionId':option.OptionID})
                 print(option.Text)
             questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                     'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
                                     'optionList':optionList,'Answer':answer})
+            print(answer)
             
         elif question["Category"]==3:                  #填空题
             print("#3")
@@ -111,6 +113,7 @@ def display_answer_normal(request,username,questionnaireId,submissionId):
             if not ratingAnswer_query.exists():
                 answer=0
             else:
+                #print("123")
                 answer=ratingAnswer_query.first().Rate
 
             questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
@@ -121,6 +124,106 @@ def display_answer_normal(request,username,questionnaireId,submissionId):
     print(survey.Description)
     data={'Title':survey.Title,'description':survey.Description,'questionList':questionList}
     return JsonResponse(data)
+
+
+#考试问卷的展示界面：
+def display_answer_test(request,username,questionnaireId,submissionId):
+    user=User.objects.get(username=username)
+    if user is None:
+        return HttpResponse(content='User not found', status=404) 
+        
+    survey=Survey.objects.get(SurveyID=questionnaireId)
+    if survey is None:
+        return HttpResponse(content='Questionnaire not found', status=404)   
+    
+    submission=Submission.objects.get(SubmissionID=submissionId)
+    if submission is None:
+        return HttpResponse(content='Submission not found', status=404)  
+    
+    all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
+                                                    ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID','QuestionNumber').all())
+                                                    
+    # 将迭代器转换为列表 (按QuestionNumber递增排序)
+    all_questions_list = list(all_questionList_iterator)
+    all_questions_list.sort(key=lambda x: x['QuestionNumber']) 
+
+    #print(all_questions_list.length())
+    questionList=[]
+    print("*")
+    #print(all_questions)
+    for question in all_questions_list:
+        if question["Category"]==1 or question["Category"]==2:    #选择题
+
+            #该单选题的用户选项:当前问卷当前submission(如果用户未选，则找不到对应的答案记录)
+            if question["Category"]==1:
+                optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])  #只有一条记录
+                
+                #用户未填该单选题
+                if not optionAnswer_query.exists():
+                    answer=-1
+                #用户填了这个单选题，有一条答案记录
+                else:
+                    answer=optionAnswer_query.first().ChoiceOptions.OptionID
+            
+            #该多选题的用户选项:当前问卷当前submission
+            else:
+                print("#2")
+                optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])#一或多条记录
+                #用户未填该多选题
+                if not optionAnswer_query.exists():answer=[]
+                #用户填了这个多选题，有一条/多条答案记录
+                else:
+                    answer=[]
+                    for optionAnswer in optionAnswer_query:
+                        answer.append(optionAnswer.ChoiceOptions.OptionID)
+
+            optionList=[]
+            #所有选项
+            options_query=ChoiceOption.objects.filter(Question=question["QuestionID"])
+            for option in options_query:
+                print(option.Text)
+                optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionId':option.OptionID})
+                print(option.Text)
+            questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                    'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
+                                    'optionList':optionList,'Answer':answer})
+            print(answer)
+            
+        elif question["Category"]==3:                  #填空题
+            print("#3")
+            #该填空题的用户答案:有且仅有一条记录
+            blankAnswer_query=BlankAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+            #用户未填该填空题
+            if not blankAnswer_query.exists():
+                answer=""
+            else:
+                answer=blankAnswer_query.first().Content
+            
+            questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                    'isNecessary':question["IsRequired"],'score':question["Score"],
+                                    'correctAnswer':question["CorrectAnswer"],'Answer':answer})
+
+        elif question["Category"]==4:                  #评分题
+            print("#4")
+            #该评分题的用户答案:有且仅有一条记录
+            ratingAnswer_query=RatingAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+            #用户未填该评分题
+            if not ratingAnswer_query.exists():
+                answer=0
+            else:
+                #print("123")
+                answer=ratingAnswer_query.first().Rate
+
+            questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                    'isNecessary':question["IsRequired"],'score':question["Score"],'Answer':answer})
+
+
+    print(survey.Title)
+    print(survey.Description)
+    data={'Title':survey.Title,'description':survey.Description,'questionList':questionList}
+    return JsonResponse(data)
+
 
 
 
@@ -149,6 +252,7 @@ class GetStoreFillView(APIView):
             if submission_query.exists():
                 submissionID=submission_query.first().SubmissionID  #找到未填写的记录
                 duration=submission_query.first().Interval
+                # submission = submission_query.first()
             
             else:      #不存在：创建一条新的填写记录
                 submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted",
@@ -260,14 +364,19 @@ class GetStoreFillView(APIView):
 def get_submission(request):
     if(request.method=='POST'):
         try:
+            print("*")
             body=json.loads(request.body)
+            print("*")
             surveyID=body['surveyID']    #问卷id
             status=body['status']  #填写记录状态
             submissionID=body['submissionID']   #填写记录ID
             username=body['username']     #填写者
             submissionList=body['question']     #填写记录
-            duration=body['duration']   
-            #print(submissionID)
+            duration=body['duration']  
+
+            score=body['score'] 
+            
+            print(submissionID)
 
             survey=Survey.objects.get(SurveyID=surveyID)
             if survey is None:
@@ -284,7 +393,9 @@ def get_submission(request):
                                              Interval=0)
             #已存在，删除填写记录的所有内容
             else:
+                print("123")
                 submission=Submission.objects.get(SubmissionID=submissionID)
+                print(submission)
                 if submission is None:
                     return HttpResponse(content='Submission not found',status=404)
                 
@@ -297,20 +408,22 @@ def get_submission(request):
                 
                 #所有填空题的填写记录
                 BlankAnswer_query=BlankAnswer.objects.filter(Submission=submission)
-                for BlankAnswer in BlankAnswer_query:
-                    BlankAnswer.delete()
+                if BlankAnswer_query.exists():
+                    for blankAnswer in BlankAnswer_query:
+                        blankAnswer.delete()
                 
                 #所有评分题的填写记录
-                RatingAnswer_query=BlankAnswer.objects.filter(Submission=submission)
-                for RatingAnswer in BlankAnswer_query:
-                    RatingAnswer.delete()
-
+                RatingAnswer_query=RatingAnswer.objects.filter(Submission=submission)
+                if RatingAnswer_query.exists():
+                    for ratingAnswer in RatingAnswer_query:
+                        ratingAnswer.delete()
+            print("ldhflas")
             index=1
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
-                # print(questionID)
-                # print(answer)
+                print(questionID)
+                print(answer)
                 #question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
 
                 question_iterator=itertools.chain(BlankQuestion.objects.filter(QuestionID=questionID),
@@ -355,13 +468,15 @@ def get_submission(request):
                     print(answer)
                     ratingAnswer=RatingAnswer.objects.create(Question=question,Submission=submission,Rate=answer)
                     ratingAnswer.save()
-                print("hi")
+                print("-----")
                 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    data={'message':True}
+    return JsonResponse(data)
+    #return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 #问卷编辑界面：向前端传输问卷设计内容
