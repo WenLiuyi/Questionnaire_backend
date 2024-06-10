@@ -27,6 +27,103 @@ from operator import attrgetter
 
 serveAddress="http:127.0.0.1:8080"
 
+#普通问卷的展示界面：
+def display_answer_normal(request,username,questionnaireId,submissionId):
+    user=User.objects.get(username=username)
+    if user is None:
+        return HttpResponse(content='User not found', status=404) 
+        
+    survey=Survey.objects.get(SurveyID=questionnaireId)
+    if survey is None:
+        return HttpResponse(content='Questionnaire not found', status=404)   
+    
+    submission=Submission.objects.get(SubmissionID=submissionId)
+    if submission is None:
+        return HttpResponse(content='Submission not found', status=404)  
+    
+    all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
+                                                    ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
+                                                    RatingQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','QuestionID','QuestionNumber').all())
+                                                    
+    # 将迭代器转换为列表 (按QuestionNumber递增排序)
+    all_questions_list = list(all_questionList_iterator)
+    all_questions_list.sort(key=lambda x: x['QuestionNumber']) 
+
+    #print(all_questions_list.length())
+    questionList=[]
+    print("*")
+    #print(all_questions)
+    for question in all_questions_list:
+        if question["Category"]==1 or question["Category"]==2:    #选择题
+
+            #该单选题的用户选项:当前问卷当前submission(如果用户未选，则找不到对应的答案记录)
+            if question["Category"]==1:
+                optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])  #只有一条记录
+                
+                #用户未填该单选题
+                if not optionAnswer_query.exists():
+                    answer=-1
+                #用户填了这个单选题，有一条答案记录
+                else:
+                    answer=optionAnswer_query.first().ChoiceOptions.OptionID
+            
+            #该多选题的用户选项:当前问卷当前submission
+            else:
+                print("#2")
+                optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])#一或多条记录
+                #用户未填该多选题
+                if not optionAnswer_query.exists():answer=[]
+                #用户填了这个多选题，有一条/多条答案记录
+                else:
+                    answer=[]
+                    for optionAnswer in optionAnswer_query:
+                        answer.append(optionAnswer.ChoiceOptions.OptionID)
+
+            optionList=[]
+            #将所有选项顺序排列
+            options_query=ChoiceOption.objects.filter(Question=question["QuestionID"]).order_by('OptionNumber')
+            for option in options_query:
+                optionList.append({'content':option.Text,'optionNumber':option.OptionNumber,'isCorrect':option.IsCorrect,'optionId':option.OptionID})
+                print(option.Text)
+            questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                    'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
+                                    'optionList':optionList,'Answer':answer})
+            
+        elif question["Category"]==3:                  #填空题
+            print("#3")
+            #该填空题的用户答案:有且仅有一条记录
+            blankAnswer_query=BlankAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+            #用户未填该填空题
+            if not blankAnswer_query.exists():
+                answer=""
+            else:
+                answer=blankAnswer_query.first().Content
+            
+            questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                    'isNecessary':question["IsRequired"],'score':question["Score"],
+                                    'correctAnswer':question["CorrectAnswer"],'Answer':answer})
+
+        elif question["Category"]==4:                  #评分题
+            print("#4")
+            #该评分题的用户答案:有且仅有一条记录
+            ratingAnswer_query=RatingAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+            #用户未填该评分题
+            if not ratingAnswer_query.exists():
+                answer=0
+            else:
+                answer=ratingAnswer_query.first().Rate
+
+            questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
+                                    'isNecessary':question["IsRequired"],'score':question["Score"],'Answer':answer})
+
+
+    print(survey.Title)
+    print(survey.Description)
+    data={'Title':survey.Title,'description':survey.Description,'questionList':questionList}
+    return JsonResponse(data)
+
+
+
 #问卷填写界面：向前端传输问卷当前暂存的填写记录
 class GetStoreFillView(APIView):
     def get(self, request, *args, **kwargs):  
