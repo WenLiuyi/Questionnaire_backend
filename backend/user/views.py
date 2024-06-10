@@ -64,7 +64,6 @@ class GetStoreFillView(APIView):
         #从问卷管理界面进入：
         else:
             submission=Submission.objects.get(SubmissionID=submissionID)
-            duration=submission.Interval
             if submission is None:
                 return HttpResponse(content='Submission not found', status=404) 
         
@@ -168,12 +167,17 @@ def get_submission(request):
         try:
             body=json.loads(request.body)
             surveyID=body['surveyID']    #问卷id
+            print("1")
             status=body['status']  #填写记录状态
+            print("1")
             submissionID=body['submissionID']   #填写记录ID
+            print("1")
             username=body['username']     #填写者
+            print("1")
             submissionList=body['question']     #填写记录
+            print("1")
             duration=body['duration']   
-            #print(submissionID)
+            print("1")
 
             survey=Survey.objects.get(SurveyID=surveyID)
             if survey is None:
@@ -184,8 +188,7 @@ def get_submission(request):
                 return HttpResponse(content='User not found',status=404)
 
             #当前不存在该填写记录，创建：
-            if submissionID=="-1":
-
+            if submissionID==-1:
                 submission=Submission.objects.create(Survey=survey,Respondent=user,
                                              SubmissionTime=timezone.now(),Status=status,
                                              Interval=0)
@@ -193,8 +196,6 @@ def get_submission(request):
 
             #已存在，删除填写记录的所有内容
             else:
-                #print(submissionID)
-                print("*")
                 submission=Submission.objects.get(SubmissionID=submissionID)
                 if submission is None:
                     return HttpResponse(content='Submission not found',status=404)
@@ -205,26 +206,22 @@ def get_submission(request):
 
                 #所有选择题的填写记录
                 ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
-                # print(ChoiceAnswer_query)
+                print(ChoiceAnswer_query)
                 if ChoiceAnswer_query.exists():
                     for choiceAnswer in ChoiceAnswer_query:
                         choiceAnswer.delete()
                 
                 #所有填空题的填写记录
                 BlankAnswer_query=BlankAnswer.objects.filter(Submission=submission)
-                if BlankAnswer_query.exists():
-                    for blankAnswer in BlankAnswer_query:
-                        blankAnswer.delete()
-    
+                for BlankAnswer in BlankAnswer_query:
+                    BlankAnswer.delete()
+                
                 #所有评分题的填写记录
-                RatingAnswer_query=RatingAnswer.objects.filter(Submission=submission)
-                if RatingAnswer_query.exists():
-                    for ratingAnswer in RatingAnswer_query:
-                        ratingAnswer.delete()
+                RatingAnswer_query=BlankAnswer.objects.filter(Submission=submission)
+                for RatingAnswer in BlankAnswer_query:
+                    RatingAnswer.delete()
 
             index=1
-            print("#")
-            print(submissionList)
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
@@ -912,6 +909,8 @@ def activate_user(request,token):
 
 #额外需要的包
 import pandas as pd
+from io import BytesIO
+import openpyxl
 
 #交叉分析
 def cross_analysis(request, QuestionID1, QuestionID2):
@@ -939,11 +938,16 @@ def cross_analysis(request, QuestionID1, QuestionID2):
         
         return JsonResponse(results)
 
+
 #下载表格
 def download_submissions(request, surveyID):
+    print("++++++")
     if request.method == 'GET':
-        survey = Submission.objects.filter(Survey__SurveyID=surveyID).first().Survey
-        submissions = Submission.objects.filter(Survey__SurveyID=surveyID, Status__in=['Submitted', 'Graded'])
+        #survey = Submission.objects.filter(SurveyID=surveyID).first().Survey    #填写记录对应的问卷
+        survey=Survey.objects.get(SurveyID=surveyID)    
+        if survey is None:
+            return HttpResponse(content="Questionnaire not found",status=404)
+        submissions = Submission.objects.filter(SurveyID=surveyID, Status__in=['Submitted', 'Graded'])#找出该问卷的填写记录（已提交、已打分）
 
         data = {
             '填写者': [],
@@ -961,7 +965,7 @@ def download_submissions(request, surveyID):
                                                     
         # 将迭代器转换为列表  
         questions = list(all_questionList_iterator)
-        questions.sort(key=lambda x: x['QuestionNumber']) 
+        questions.sort(key=lambda x: x['QuestionNumber'])   #按题号升序排序
         
 
         for q in questions:
@@ -975,6 +979,7 @@ def download_submissions(request, surveyID):
 
         print(data)
 
+        #submissions为该问卷的所有填写记录
         for submission in submissions:
             data['填写者'].append(submission.Respondent.username)
             data['提交时间'].append(submission.SubmissionTime.date)
@@ -982,6 +987,7 @@ def download_submissions(request, surveyID):
             if survey.Category == '3':
                 data['分数'].append(submission.Score)
 
+            #找到填写记录submission的所有答案（选择题答案+填空题答案+评分题答案）
             all_answer = itertools.chain(BlankAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
                                          ChoiceAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
                                          RatingAnswer.objects.filter(Submission=submission).values('AnswerID').all())
@@ -1002,14 +1008,38 @@ def download_submissions(request, surveyID):
                     answer = RatingAnswer.objects.get(AnswerID=a["AnswerID"])
                     data[answer.Question.Text].append(answer.Rate)
 
+        print("hi")
         print(data)
 
         df = pd.DataFrame(data)
+        output = BytesIO()
+    # 创建Excel writer对象
+        writer = pd.ExcelWriter(output, engine='openpyxl')
+
+    # 将DataFrame写入Excel文件
+        df.to_excel(writer, index=False)
+
+    # 保存Excel文件
+        writer.save()
+
+    # 重置流的位置
+        output.seek(0)
+
+    # 创建HttpResponse对象，将Excel文件作为响应发送
+        response = HttpResponse(
+            output.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename=文件名.xlsx'
+
+        return response
+        '''
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = 'attachment; filename="问卷填写情况.xlsx"'
         df.to_excel(response, index=False)
 
         return response
+        '''
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 from django.db.models import Count, Sum, Q
