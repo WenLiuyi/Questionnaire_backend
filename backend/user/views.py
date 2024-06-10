@@ -661,15 +661,15 @@ def save_qs_design(request):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-#创建者的填写记录
+#填写记录
 def delete_filled_qs(request):
     if(request.method=='POST'):
         try:
             body=json.loads(request.body)
             submissionID=body
-            if submissionID is None:
+            submission=Submission.objects.get(SubmissionID=submissionID)     #对应填写记录
+            if submission is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
-            submission=Submission.objects.filter(SubmissionID=submissionID).first()     #对应填写记录
             submission.delete()
 
         except json.JSONDecodeError:  
@@ -693,6 +693,7 @@ def update_or_delete_released_qs(request):
                 qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
                 qs.Is_deleted=True
                 qs.Is_released=False
+                qs.save()
 
                 submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录
             
@@ -706,7 +707,7 @@ def update_or_delete_released_qs(request):
                             submission.save()
                 
             
-            #更新创建
+            #更新发布状态
             else:
                 qsID=body['id']
                 if qsID is None:
@@ -714,19 +715,19 @@ def update_or_delete_released_qs(request):
                 qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
 
                 #当前未发布，改为发布状态：
-                if qs.Is_released==False:
-                    qs.Is_released=True
+                if qs.Is_open==False:
+                    qs.Is_open=True
                 
                 #当前已发布，撤回
                 else:
-                    qs.Is_released=False
+                    qs.Is_open=False
                 qs.save()
 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    data={"message":True}
+    data={"message":"True"}
     return JsonResponse(data)
     #return JsonResponse({'error': 'Invalid request method'}, status=405)
 
@@ -772,7 +773,7 @@ def get_released_qs(request,username):
         for survey in qs_query:
             submissionCnt=Submission.objects.filter(Survey=survey).count()  #该问卷已提交的填写份数
             data_list.append({'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,
-                    'Category':survey.Category,'Description':survey.Description,'FilledPeople':submissionCnt})
+                    'Category':survey.Category,'Description':survey.Description,'FilledPeople':submissionCnt, 'IsOpening':survey.Is_open})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -883,7 +884,7 @@ def check_qs(request,username,questionnaireId,type):
 #问卷广场：所有问卷
 def get_all_released_qs(request):
     if(request.method=='GET'):
-        qs_query=Survey.objects.filter(Is_released=True).order_by("-PublishDate")
+        qs_query=Survey.objects.filter(Is_released=True,Is_open=True).order_by("-PublishDate")
         data_list=[]
 
         for survey in qs_query:
