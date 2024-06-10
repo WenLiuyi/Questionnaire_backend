@@ -15,6 +15,7 @@ urlpatterns = [
     path('userManage/filled/<str:username>',views.get_filled_qs,name='get-filled-qs-url'),
     path('userManage/square',views.get_all_released_qs,name='get-all-released-qs-url'),
     path('userManage/square/<str:username>/<int:questionnaireId>/<int:type>',views.check_qs,name='check-qs-url'),
+    #path('userManage/filled/<int:surveyID>',views.check_qs_open_stautus,name='check-qs-open-stautus-url'),
 
     #问卷管理界面：删除
     path('userManage/unreleased',views.delete_unreleased_qs,name='delete-unreleased-qs-url'),
