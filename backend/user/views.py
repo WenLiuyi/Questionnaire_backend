@@ -589,6 +589,17 @@ def get_filled_qs(request,username):
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
+#问卷管理界面：进入填写时，检查当前问卷的Is_open状态；若为False，则创建者已暂停收集，不可再填写
+def check_qs_open_stautus(request,questionnaireId):
+    qs=Survey.objects.get(SurveyID=questionnaireId)
+    if qs is None:
+        return HttpResponse(content="Questionnaire not found",status=404)
+    if qs.Is_open==False:
+        data={"message":False,"content":"该问卷已暂停收集"}
+        return JsonResponse(data)
+    else:
+        data={"message":True,"content":"可开始/修改填写"}
+
 #问卷广场：检查投票/考试问卷
 def check_qs(request,username,questionnaireId,type):
     user=User.objects.get(username=username)
