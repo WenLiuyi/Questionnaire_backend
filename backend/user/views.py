@@ -105,11 +105,12 @@ class GetStoreFillView(APIView):
                     print("#2")
                     optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])#一或多条记录
                     #用户未填该多选题
-                    if not optionAnswer_query.exists():answer=[-1]
+                    if not optionAnswer_query.exists():answer=[]
                     #用户填了这个多选题，有一条/多条答案记录
-                    answer=[]
-                    for optionAnswer in optionAnswer_query:
-                        answer.append(optionAnswer.ChoiceOptions.OptionID)
+                    else:
+                        answer=[]
+                        for optionAnswer in optionAnswer_query:
+                            answer.append(optionAnswer.ChoiceOptions.OptionID)
 
                 optionList=[]
                 #将所有选项顺序排列
@@ -195,8 +196,10 @@ def get_submission(request):
                 
                 #所有选择题的填写记录
                 ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
-                for choiceAnswer in ChoiceAnswer_query:
-                    choiceAnswer.delete()
+                print(ChoiceAnswer_query)
+                if ChoiceAnswer_query.exists():
+                    for choiceAnswer in ChoiceAnswer_query:
+                        choiceAnswer.delete()
                 
                 #所有填空题的填写记录
                 BlankAnswer_query=BlankAnswer.objects.filter(Submission=submission)
@@ -212,35 +215,53 @@ def get_submission(request):
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
-                question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
+                # print(questionID)
+                # print(answer)
+                #question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
+
+                question_iterator=itertools.chain(BlankQuestion.objects.filter(QuestionID=questionID),
+                                                  ChoiceQuestion.objects.filter(QuestionID=questionID),
+                                                  RatingQuestion.objects.filter(QuestionID=questionID)
+                                                  )
+                question_list=list(question_iterator)
+                question=question_list[0]
+                #print(question)
                 if question is None:
                     return HttpResponse(content='Question not found',status=404)
                 
-                if question["Category"]==1:     #单选题：Answer为选项ID
+                if question.Category==1:     #单选题：Answer为选项ID
+                    print("#1")
                     if answer==-1: continue       #返回-1，代表用户没填该单选题
                     option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
                     if option is None:
                         return HttpResponse(content="Option not found",status=404)
+                    print(option.OptionID)
                     choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                     choiceAnswer.save()
 
-                elif question["Category"]==2:     #多选题：Answer为选项ID的数组
+                elif question.Category==2:     #多选题：Answer为选项ID的数组
+                    print("#2")
                     #为每个用户选择的选项，创建一条ChoiceAnswer记录
                     for optionID in answer:
-                        if optionID==-1: continue       #返回[-1]，代表用户没填该多选题
                         option=ChoiceOption.objects.get(OptionID=optionID)     #用户选择的选项
                         if option is None:
                             return HttpResponse(content="Option not found",status=404)
+                        print(option.OptionID)
                         choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                         choiceAnswer.save()
 
-                elif question["Category"]==3:     #填空题：answer为填写的内容
+                elif question.Category==3:     #填空题：answer为填写的内容
+                    print("#3")
+                    print(answer)
                     blankAnswer=BlankAnswer.objects.create(Question=question,Submission=submission,Content=answer)
                     choiceAnswer.save()
                 
                 else:       #评分题：answer为填写的内容
+                    print("#4")
+                    print(answer)
                     ratingAnswer=RatingAnswer.objects.create(Question=question,Submission=submission,Rate=answer)
                     ratingAnswer.save()
+                print("hi")
                 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
@@ -342,7 +363,7 @@ def save_qs_design(request):
             if surveyID==-1:
                 survey=Survey.objects.create(Owner=user,Title=title,
                                              Description=description,Is_released=Is_released,
-                                             Is_open=False,Is_deleted=False,Category=catecory,
+                                             Is_open=True,Is_deleted=False,Category=catecory,
                                              TotalScore=0,TimeLimit=timelimit,IsOrder=isOrder,QuotaLimit=people
                                             )
                 survey.QuotaLimit=people
@@ -490,7 +511,9 @@ def update_or_delete_released_qs(request):
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    data={"message":True}
+    return JsonResponse(data)
+    #return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 #删除未发布的问卷(直接从数据库移除)
@@ -563,6 +586,17 @@ def get_filled_qs(request,username):
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+#问卷管理界面：进入填写时，检查当前问卷的Is_open状态；若为False，则创建者已暂停收集，不可再填写
+def check_qs_open_stautus(request,questionnaireId):
+    qs=Survey.objects.get(SurveyID=questionnaireId)
+    if qs is None:
+        return HttpResponse(content="Questionnaire not found",status=404)
+    if qs.Is_open==False:
+        data={"message":False,"content":"该问卷已暂停收集"}
+        return JsonResponse(data)
+    else:
+        data={"message":True,"content":"可开始/修改填写"}
 
 #问卷广场：检查投票/考试问卷
 def check_qs(request,username,questionnaireId,type):
