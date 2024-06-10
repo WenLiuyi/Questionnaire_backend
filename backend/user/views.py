@@ -254,12 +254,14 @@ class GetStoreFillView(APIView):
                 submissionID=submission_query.first().SubmissionID  #找到未填写的记录
                 duration=submission_query.first().Interval
                 submission = submission_query.first()
+                # newsubmissionID = submissionID
             
             else:      #不存在：创建一条新的填写记录
                 submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted",
                                                     Interval=0)
                 duration=0
                 print("#")
+                # newsubmissionID = submission.SubmissionID
                 return HttpResponse(content='Submission not existed', status=404) 
         
         #从问卷管理界面进入：
@@ -296,7 +298,8 @@ class GetStoreFillView(APIView):
                 #该单选题的用户选项:当前问卷当前submission(如果用户未选，则找不到对应的答案记录)
                 if question["Category"]==1:
                     optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])  #只有一条记录
-                    
+                    print("debug")
+                    print(optionAnswer_query)
                     #用户未填该单选题
                     if not optionAnswer_query.exists():
                         answer=-1
@@ -325,11 +328,14 @@ class GetStoreFillView(APIView):
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],'optionCnt':question["OptionCnt"],
                                      'optionList':optionList,'Answer':answer})
+                print(answer)
                 
             elif question["Category"]==3:                  #填空题
                 print("#3")
                 #该填空题的用户答案:有且仅有一条记录
                 blankAnswer_query=BlankAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
+                # print("debug")
+                # print(blankAnswer_query)
                 #用户未填该填空题
                 if not blankAnswer_query.exists():
                     answer=""
@@ -339,9 +345,11 @@ class GetStoreFillView(APIView):
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],
                                      'correctAnswer':question["CorrectAnswer"],'Answer':answer})
+                print(answer)
 
             elif question["Category"]==4:                  #评分题
                 print("#4")
+                
                 #该评分题的用户答案:有且仅有一条记录
                 ratingAnswer_query=RatingAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])
                 #用户未填该评分题
@@ -352,7 +360,7 @@ class GetStoreFillView(APIView):
 
                 questionList.append({'type':question["Category"],'question':question["Text"],'questionID':question["QuestionID"],
                                      'isNecessary':question["IsRequired"],'score':question["Score"],'Answer':answer})
-
+                print(answer)
 
         print(survey.Title)
         print(survey.Description)
@@ -361,7 +369,7 @@ class GetStoreFillView(APIView):
         return JsonResponse(data)
         
 
-#问卷填写界面：从前端接收用户的填写记录
+#问卷填写界面：从前端接收用户的填写记录(POST)
 def get_submission(request):
     if(request.method=='POST'):
         try:
@@ -427,53 +435,75 @@ def get_submission(request):
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
-                # print(questionID)
-                # print(answer)
+                print(questionID)
+                print(answer)
                 #question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
 
-                question_iterator=itertools.chain(BlankQuestion.objects.filter(QuestionID=questionID),
-                                                  ChoiceQuestion.objects.filter(QuestionID=questionID),
-                                                  RatingQuestion.objects.filter(QuestionID=questionID)
-                                                  )
+                '''
+                question_iterator=itertools.chain(ChoiceQuestion.objects.filter(QuestionID=questionID),
+                                                    BlankQuestion.objects.filter(QuestionID=questionID),
+                                                    RatingQuestion.objects.filter(QuestionID=questionID))
                 question_list=list(question_iterator)
                 question=question_list[0]
-                #print(question)
+                print(question)
+                print(question_list)
+                # print(question["Category"])
+                # print(question.Category)'''
+
+                questionNewList=[]
+                choiceQuestion_query=ChoiceQuestion.objects.filter(QuestionID=questionID)
+                if choiceQuestion_query.exists():
+                    questionNewList.append(choiceQuestion_query.first())
+
+                blankQuestion_query=BlankQuestion.objects.filter(QuestionID=questionID)
+                if blankQuestion_query.exists():
+                    questionNewList.append(blankQuestion_query.first())
+
+                ratingQuestion_query=RatingQuestion.objects.filter(QuestionID=questionID)
+                if ratingQuestion_query.exists():
+                    questionNewList.append(ratingQuestion_query.first())
+                
+                question=questionNewList[0]
+
+                # print(question.CorrectAnswer)
                 if question is None:
                     return HttpResponse(content='Question not found',status=404)
                 
+                # print(question['Category'])
+
                 if question.Category==1:     #单选题：Answer为选项ID
-                    # print("#1")
+                    print("#1")
                     if answer==-1: continue       #返回-1，代表用户没填该单选题
                     option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
                     if option is None:
                         return HttpResponse(content="Option not found",status=404)
-                    # print(option.OptionID)
+                    print(option.OptionID)
                     choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                     choiceAnswer.save()
 
                 elif question.Category==2:     #多选题：Answer为选项ID的数组
-                    # print("#2")
+                    print("#2")
                     #为每个用户选择的选项，创建一条ChoiceAnswer记录
                     for optionID in answer:
                         option=ChoiceOption.objects.get(OptionID=optionID)     #用户选择的选项
                         if option is None:
                             return HttpResponse(content="Option not found",status=404)
-                        # print(option.OptionID)
+                        print(option.OptionID)
                         choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                         choiceAnswer.save()
 
                 elif question.Category==3:     #填空题：answer为填写的内容
-                    # print("#3")
-                    # print(answer)
+                    print("#3")
+                    print(answer)
                     blankAnswer=BlankAnswer.objects.create(Question=question,Submission=submission,Content=answer)
-                    choiceAnswer.save()
+                    blankAnswer.save()
                 
-                else:       #评分题：answer为填写的内容
-                    # print("#4")
-                    # print(answer)
+                elif question.Category==4:      #评分题：answer为填写的内容
+                    print("#4")
+                    print(answer)
                     ratingAnswer=RatingAnswer.objects.create(Question=question,Submission=submission,Rate=answer)
                     ratingAnswer.save()
-                # print("-----")
+                print("-----")
                 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
@@ -676,7 +706,8 @@ def delete_filled_qs(request):
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    data = {"message": "True"}
+    return JsonResponse(data)
 
 def update_or_delete_released_qs(request):
     if(request.method=='POST'):
