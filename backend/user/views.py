@@ -196,7 +196,7 @@ def get_submission(request):
 
                 #所有选择题的填写记录
                 ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
-                print(ChoiceAnswer_query)
+                # print(ChoiceAnswer_query)
                 if ChoiceAnswer_query.exists():
                     for choiceAnswer in ChoiceAnswer_query:
                         choiceAnswer.delete()
@@ -219,37 +219,53 @@ def get_submission(request):
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
-                print(questionID)
-                print(answer)
-                question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
+                # print(questionID)
+                # print(answer)
+                #question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
+
+                question_iterator=itertools.chain(BlankQuestion.objects.filter(QuestionID=questionID),
+                                                  ChoiceQuestion.objects.filter(QuestionID=questionID),
+                                                  RatingQuestion.objects.filter(QuestionID=questionID)
+                                                  )
+                question_list=list(question_iterator)
+                question=question_list[0]
+                #print(question)
                 if question is None:
                     return HttpResponse(content='Question not found',status=404)
-                print("#")
-                if question["Category"]==1:     #单选题：Answer为选项ID
+                
+                if question.Category==1:     #单选题：Answer为选项ID
+                    print("#1")
                     if answer==-1: continue       #返回-1，代表用户没填该单选题
                     option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
                     if option is None:
                         return HttpResponse(content="Option not found",status=404)
+                    print(option.OptionID)
                     choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                     choiceAnswer.save()
 
-                elif question["Category"]==2:     #多选题：Answer为选项ID的数组
+                elif question.Category==2:     #多选题：Answer为选项ID的数组
+                    print("#2")
                     #为每个用户选择的选项，创建一条ChoiceAnswer记录
                     for optionID in answer:
-                        if optionID==-1: continue       #返回[-1]，代表用户没填该多选题
                         option=ChoiceOption.objects.get(OptionID=optionID)     #用户选择的选项
                         if option is None:
                             return HttpResponse(content="Option not found",status=404)
+                        print(option.OptionID)
                         choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                         choiceAnswer.save()
 
-                elif question["Category"]==3:     #填空题：answer为填写的内容
+                elif question.Category==3:     #填空题：answer为填写的内容
+                    print("#3")
+                    print(answer)
                     blankAnswer=BlankAnswer.objects.create(Question=question,Submission=submission,Content=answer)
                     choiceAnswer.save()
                 
                 else:       #评分题：answer为填写的内容
+                    print("#4")
+                    print(answer)
                     ratingAnswer=RatingAnswer.objects.create(Question=question,Submission=submission,Rate=answer)
                     ratingAnswer.save()
+                print("hi")
                 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
