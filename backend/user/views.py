@@ -139,6 +139,7 @@ def display_answer_test(request,username,questionnaireId,submissionId):
     submission=Submission.objects.get(SubmissionID=submissionId)
     if submission is None:
         return HttpResponse(content='Submission not found', status=404)  
+    score=submission.Score
     
     all_questionList_iterator = itertools.chain(BlankQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','CorrectAnswer','QuestionNumber','QuestionID').all(),
                                                     ChoiceQuestion.objects.filter(Survey=survey).values('Category', 'Text', 'QuestionID', 'IsRequired', 'Score','OptionCnt','QuestionNumber','QuestionID').all(),
@@ -221,7 +222,7 @@ def display_answer_test(request,username,questionnaireId,submissionId):
 
     print(survey.Title)
     print(survey.Description)
-    data={'Title':survey.Title,'description':survey.Description,'questionList':questionList}
+    data={'Title':survey.Title,'description':survey.Description,'questionList':questionList,'score':score}
     return JsonResponse(data)
 
 
@@ -252,7 +253,7 @@ class GetStoreFillView(APIView):
             if submission_query.exists():
                 submissionID=submission_query.first().SubmissionID  #找到未填写的记录
                 duration=submission_query.first().Interval
-                # submission = submission_query.first()
+                submission = submission_query.first()
             
             else:      #不存在：创建一条新的填写记录
                 submission=Submission.objects.create(Survey=survey,Respondent=user,Status="Unsubmitted",
@@ -375,8 +376,8 @@ def get_submission(request):
             duration=body['duration']  
 
             score=body['score'] 
-            
-            print(submissionID)
+
+            print(status)
 
             survey=Survey.objects.get(SurveyID=surveyID)
             if survey is None:
@@ -390,18 +391,22 @@ def get_submission(request):
             if submissionID==-1:
                 submission=Submission.objects.create(Survey=survey,Respondent=user,
                                              SubmissionTime=timezone.now(),Status=status,
-                                             Interval=0)
+                                             Interval=0,Score=score)
+            
             #已存在，删除填写记录的所有内容
             else:
-                print("123")
+                # print("123")
                 submission=Submission.objects.get(SubmissionID=submissionID)
-                print(submission)
+                # print(submission)
                 if submission is None:
                     return HttpResponse(content='Submission not found',status=404)
+                submission.Score=score
+                submission.Status=status
+                submission.save()
                 
                 #所有选择题的填写记录
                 ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
-                print(ChoiceAnswer_query)
+                # print(ChoiceAnswer_query)
                 if ChoiceAnswer_query.exists():
                     for choiceAnswer in ChoiceAnswer_query:
                         choiceAnswer.delete()
@@ -422,8 +427,8 @@ def get_submission(request):
             for submissionItem in submissionList:
                 questionID=submissionItem["questionID"]     #问题ID
                 answer=submissionItem['value']        #用户填写的答案
-                print(questionID)
-                print(answer)
+                # print(questionID)
+                # print(answer)
                 #question = BaseQuestion.objects.get(QuestionID=questionID).select_subclasses()   #联合查询
 
                 question_iterator=itertools.chain(BlankQuestion.objects.filter(QuestionID=questionID),
@@ -437,38 +442,38 @@ def get_submission(request):
                     return HttpResponse(content='Question not found',status=404)
                 
                 if question.Category==1:     #单选题：Answer为选项ID
-                    print("#1")
+                    # print("#1")
                     if answer==-1: continue       #返回-1，代表用户没填该单选题
                     option=ChoiceOption.objects.get(OptionID=answer)     #用户选择的选项
                     if option is None:
                         return HttpResponse(content="Option not found",status=404)
-                    print(option.OptionID)
+                    # print(option.OptionID)
                     choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                     choiceAnswer.save()
 
                 elif question.Category==2:     #多选题：Answer为选项ID的数组
-                    print("#2")
+                    # print("#2")
                     #为每个用户选择的选项，创建一条ChoiceAnswer记录
                     for optionID in answer:
                         option=ChoiceOption.objects.get(OptionID=optionID)     #用户选择的选项
                         if option is None:
                             return HttpResponse(content="Option not found",status=404)
-                        print(option.OptionID)
+                        # print(option.OptionID)
                         choiceAnswer=ChoiceAnswer.objects.create(Question=question,Submission=submission,ChoiceOptions=option)
                         choiceAnswer.save()
 
                 elif question.Category==3:     #填空题：answer为填写的内容
-                    print("#3")
-                    print(answer)
+                    # print("#3")
+                    # print(answer)
                     blankAnswer=BlankAnswer.objects.create(Question=question,Submission=submission,Content=answer)
                     choiceAnswer.save()
                 
                 else:       #评分题：answer为填写的内容
-                    print("#4")
-                    print(answer)
+                    # print("#4")
+                    # print(answer)
                     ratingAnswer=RatingAnswer.objects.create(Question=question,Submission=submission,Rate=answer)
                     ratingAnswer.save()
-                print("-----")
+                # print("-----")
                 
         except json.JSONDecodeError:  
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
