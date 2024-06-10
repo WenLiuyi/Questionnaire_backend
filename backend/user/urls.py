@@ -32,7 +32,7 @@ urlpatterns = [
     #path('questionnaireFill/<str:userName>/<int:surveyID>/<int:submissionID>', GetStoreFillView.as_view(), name='get-store-fill-url'),
 
     #问卷展示界面：
-
+    path('normalAnswer/<str:username>/<str:questionnaireId>/<str:submissionId>',views.display_answer_normal,name='display-answer-normal'),
 
     #数据分析:
     path('dataPre/<int:QuestionID1>/<int:QuestionID2>',views.cross_analysis,name='cross-analysis-url'),

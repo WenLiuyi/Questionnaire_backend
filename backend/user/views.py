@@ -65,7 +65,8 @@ class GetStoreFillView(APIView):
         else:
             submission=Submission.objects.get(SubmissionID=submissionID)
             if submission is None:
-                return HttpResponse(content='Submission not found', status=404) 
+                return HttpResponse(content='Submission not found', status=404)
+            duration = submission.Interval 
         
         Title=survey.Title
         Description=survey.Description
