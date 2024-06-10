@@ -367,7 +367,7 @@ def save_qs_design(request):
             if surveyID==-1:
                 survey=Survey.objects.create(Owner=user,Title=title,
                                              Description=description,Is_released=Is_released,
-                                             Is_open=False,Is_deleted=False,Category=catecory,
+                                             Is_open=True,Is_deleted=False,Category=catecory,
                                              TotalScore=0,TimeLimit=timelimit,IsOrder=isOrder,QuotaLimit=people
                                             )
                 survey.QuotaLimit=people
@@ -515,7 +515,9 @@ def update_or_delete_released_qs(request):
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    return JsonResponse({'error': 'Invalid request method'}, status=405)
+    data={"message":True}
+    return JsonResponse(data)
+    #return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 #删除未发布的问卷(直接从数据库移除)
