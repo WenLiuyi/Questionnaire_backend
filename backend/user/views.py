@@ -34,7 +34,6 @@ class GetStoreFillView(APIView):
         userName = kwargs.get('userName')  
         surveyID = kwargs.get('surveyID')   
         submissionID=kwargs.get('submissionID')  
-        print("start000")
         print(userName) 
         print(surveyID)
         print(submissionID)
@@ -66,6 +65,7 @@ class GetStoreFillView(APIView):
             submission=Submission.objects.get(SubmissionID=submissionID)
             if submission is None:
                 return HttpResponse(content='Submission not found', status=404) 
+            duration=submission.Interval
         
         Title=survey.Title
         Description=survey.Description
@@ -84,9 +84,9 @@ class GetStoreFillView(APIView):
         all_questions_list = list(all_questionList_iterator)
         all_questions_list.sort(key=lambda x: x['QuestionNumber']) 
 
+        #print(all_questions_list.length())
         questionList=[]
         print("*")
-        # print(all_questions_list.len())
         #print(all_questions)
         for question in all_questions_list:
             if question["Category"]==1 or question["Category"]==2:    #选择题
@@ -100,14 +100,12 @@ class GetStoreFillView(APIView):
                         answer=-1
                     #用户填了这个单选题，有一条答案记录
                     else:
-                        # print(optionAnswer_query)
                         answer=optionAnswer_query.first().ChoiceOptions.OptionID
                 
                 #该多选题的用户选项:当前问卷当前submission
                 else:
                     print("#2")
                     optionAnswer_query=ChoiceAnswer.objects.filter(Submission=submission,Question=question["QuestionID"])#一或多条记录
-                    print(optionAnswer_query)
                     #用户未填该多选题
                     if not optionAnswer_query.exists():answer=[]
                     #用户填了这个多选题，有一条/多条答案记录
@@ -167,17 +165,12 @@ def get_submission(request):
         try:
             body=json.loads(request.body)
             surveyID=body['surveyID']    #问卷id
-            print("1")
             status=body['status']  #填写记录状态
-            print("1")
             submissionID=body['submissionID']   #填写记录ID
-            print("1")
             username=body['username']     #填写者
-            print("1")
             submissionList=body['question']     #填写记录
-            print("1")
             duration=body['duration']   
-            print("1")
+            #print(submissionID)
 
             survey=Survey.objects.get(SurveyID=surveyID)
             if survey is None:
@@ -192,18 +185,12 @@ def get_submission(request):
                 submission=Submission.objects.create(Survey=survey,Respondent=user,
                                              SubmissionTime=timezone.now(),Status=status,
                                              Interval=0)
-                newSubmissionID=submission.SubmissionID #新填写记录的ID
-
             #已存在，删除填写记录的所有内容
             else:
                 submission=Submission.objects.get(SubmissionID=submissionID)
                 if submission is None:
                     return HttpResponse(content='Submission not found',status=404)
-                newsubmissionID=submissionID
-
-                submission.Status=status
-                submission.save()
-
+                
                 #所有选择题的填写记录
                 ChoiceAnswer_query=ChoiceAnswer.objects.filter(Submission=submission)
                 print(ChoiceAnswer_query)
@@ -277,9 +264,7 @@ def get_submission(request):
             return JsonResponse({'error': 'Invalid JSON body'}, status=400)
         except Exception as e:  
             return JsonResponse({'error': str(e)}, status=500) 
-    data={"message":True,"submissionID":newsubmissionID}
-    return JsonResponse(data)
-    # return JsonResponse({'error': 'Invalid request method'}, status=405)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
 #问卷编辑界面：向前端传输问卷设计内容
@@ -465,14 +450,9 @@ def delete_filled_qs(request):
         try:
             body=json.loads(request.body)
             submissionID=body
-            # print(submissionID)
             if submissionID is None:
                 return JsonResponse({'error': 'No ID provided'}, status=400) 
-            # print("hello")
-            submission=Submission.objects.get(SubmissionID=submissionID)     #对应填写记录
-            # if submission is None:
-                # print("hi")
-            # print("hello" + submission)
+            submission=Submission.objects.filter(SubmissionID=submissionID).first()     #对应填写记录
             submission.delete()
 
         except json.JSONDecodeError:  
@@ -496,7 +476,6 @@ def update_or_delete_released_qs(request):
                 qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
                 qs.Is_deleted=True
                 qs.Is_released=False
-                qs.save()
 
                 submission_query=Submission.objects.filter(Survey=qs)   #该问卷的所有填写记录
             
@@ -508,10 +487,9 @@ def update_or_delete_released_qs(request):
                         if submission.Status=='Unsubmitted':
                             submission.Status='Deleted'
                             submission.save()
-                data={"message":"True","content":"删除功"}
-                return JsonResponse(data)
+                
             
-            #修改问卷的Is_open状态
+            #更新创建
             else:
                 qsID=body['id']
                 if qsID is None:
@@ -519,12 +497,12 @@ def update_or_delete_released_qs(request):
                 qs=Survey.objects.filter(SurveyID=qsID).first()     #对应问卷
 
                 #当前未发布，改为发布状态：
-                if qs.Is_open==False:
-                    qs.Is_open=True
+                if qs.Is_released==False:
+                    qs.Is_released=True
                 
                 #当前已发布，撤回
                 else:
-                    qs.Is_open=False
+                    qs.Is_released=False
                 qs.save()
 
         except json.JSONDecodeError:  
@@ -575,11 +553,9 @@ def get_released_qs(request,username):
 
         data_list=[]
         for survey in qs_query:
-            print(survey.Is_open)
             submissionCnt=Submission.objects.filter(Survey=survey).count()  #该问卷已提交的填写份数
             data_list.append({'Title':survey.Title,'PublishDate':survey.PublishDate,'SurveyID':survey.SurveyID,
-                    'Category':survey.Category,'Description':survey.Description,'FilledPeople':submissionCnt,
-                    'IsOpening':survey.Is_open})
+                    'Category':survey.Category,'Description':survey.Description,'FilledPeople':submissionCnt})
         data={'data':data_list}
         return JsonResponse(data)
     return JsonResponse({'error': 'Invalid request method'}, status=405)
@@ -611,7 +587,6 @@ def get_filled_qs(request,username):
 
 #问卷管理界面：进入填写时，检查当前问卷的Is_open状态；若为False，则创建者已暂停收集，不可再填写
 def check_qs_open_stautus(request,questionnaireId):
-    print("*")
     qs=Survey.objects.get(SurveyID=questionnaireId)
     if qs is None:
         return HttpResponse(content="Questionnaire not found",status=404)
@@ -681,7 +656,6 @@ def check_qs(request,username,questionnaireId,type):
     else: 
         #检查是否有未提交的填写记录
         unsubmitted_query=Submission.objects.filter(Respondent=user,Survey=qs,Status="Unsubmitted")
-        print(unsubmitted_query.first())
         if unsubmitted_query.exists():
             data={'message':False,"content":"对于当前问卷，您有未提交的填写记录"}
         else:
@@ -692,11 +666,10 @@ def check_qs(request,username,questionnaireId,type):
 #问卷广场：所有问卷
 def get_all_released_qs(request):
     if(request.method=='GET'):
-        qs_query=Survey.objects.filter(Is_released=True,Is_open=True).order_by("-PublishDate")
+        qs_query=Survey.objects.filter(Is_released=True).order_by("-PublishDate")
         data_list=[]
 
         for survey in qs_query:
-            print(survey.Is_open)
             reward=RewardOffering.objects.filter(Survey=survey).first()
             if reward is not None:
                 data_list.append({'Title':survey.Title,'PostMan':survey.Owner.username,'PublishDate':survey.PublishDate,
@@ -938,16 +911,11 @@ def cross_analysis(request, QuestionID1, QuestionID2):
         
         return JsonResponse(results)
 
-
 #下载表格
 def download_submissions(request, surveyID):
-    print("++++++")
     if request.method == 'GET':
-        #survey = Submission.objects.filter(SurveyID=surveyID).first().Survey    #填写记录对应的问卷
-        survey=Survey.objects.get(SurveyID=surveyID)    
-        if survey is None:
-            return HttpResponse(content="Questionnaire not found",status=404)
-        submissions = Submission.objects.filter(SurveyID=surveyID, Status__in=['Submitted', 'Graded'])#找出该问卷的填写记录（已提交、已打分）
+        survey = Submission.objects.filter(Survey__SurveyID=surveyID).first().Survey
+        submissions = Submission.objects.filter(Survey__SurveyID=surveyID, Status__in=['Submitted', 'Graded'])
 
         data = {
             '填写者': [],
@@ -965,7 +933,7 @@ def download_submissions(request, surveyID):
                                                     
         # 将迭代器转换为列表  
         questions = list(all_questionList_iterator)
-        questions.sort(key=lambda x: x['QuestionNumber'])   #按题号升序排序
+        questions.sort(key=lambda x: x['QuestionNumber']) 
         
 
         for q in questions:
@@ -979,7 +947,6 @@ def download_submissions(request, surveyID):
 
         print(data)
 
-        #submissions为该问卷的所有填写记录
         for submission in submissions:
             data['填写者'].append(submission.Respondent.username)
             data['提交时间'].append(submission.SubmissionTime.date)
@@ -987,7 +954,6 @@ def download_submissions(request, surveyID):
             if survey.Category == '3':
                 data['分数'].append(submission.Score)
 
-            #找到填写记录submission的所有答案（选择题答案+填空题答案+评分题答案）
             all_answer = itertools.chain(BlankAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
                                          ChoiceAnswer.objects.filter(Submission=submission).values('AnswerID').all(),
                                          RatingAnswer.objects.filter(Submission=submission).values('AnswerID').all())
